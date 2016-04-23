@@ -63,16 +63,18 @@ func addHelper(numOfBucket int, tb RoutingTable, c Contact) {
 	for index, c1 := range tb.buckets[numOfBucket] {
         if c1.NodeID == c.NodeID {
             containsC = true
-			idx = index
+						idx = index
         }
-    }
+  }
 	if containsC {
-		tb.buckets[numOfBucket] = tb.buckets[numOfBucket][:,idx - 1] + tb.buckets[numOfBucket][idx + 1,:] + tb.buckets[numOfBucket][idx]
+		tb.buckets[numOfBucket] = tb.buckets[numOfBucket][:,idx - 1] +
+									tb.buckets[numOfBucket][idx + 1,:] + tb.buckets[numOfBucket][idx]
 	} else {
 		if len(tb.buckets[numOfBucket]) < 20 {
 			tb.buckets[numOfBucket].append(c)
 		} else {
 			// TODO:ping
+			
 		}
 	}
 }
