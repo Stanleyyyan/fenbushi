@@ -36,17 +36,26 @@ func NewRoutingTable(node Contact) *Routing_Table {
 	tb.delChan = make(chan *Contact)
 }
 
-func (tb Routing_Table)AddContact() {
+func (tb *Routing_Table) HandleChange() {
 	for{
-		select{
+		select {
+			//Add Contact
 		case c := <-tb.addChan:
+			tb.AddContact(c)
+		case c := <-tb.delChan:
+			tb.DelContact(c)
+		}
+	}
+}
+
+
+func (tb *Routing_Table) AddContact(c Contact) {
 			dis := tb.NodeID.Xor(c.NodeID)
 			numOfBucket := 159 - dis.PrefixLen()
 			tb.buckets[numberOfBucket]
 			addHelper(numberOfBucket, tb, c)
-		}
-	}
 }
+
 
 func addHelper(numOfBucket int, tb RoutingTable, c Contact) {
 	containsC := false
@@ -68,17 +77,13 @@ func addHelper(numOfBucket int, tb RoutingTable, c Contact) {
 	}
 }
 
-func (tb Routing_Table)DelContact() {
-	for{
-		select{
-		case c := <-tb.delChan:
+func (tb Routing_Table)DelContact(c *Contact) {
 			dis := tb.NodeID.Xor(c.NodeID)
 			numOfBucket := 159 - dis.PrefixLen()
 			tb.buckets[numberOfBucket]
 			delHelper(numberOfBucket, tb, c)
-		}
-	}
 }
+
 
 func delHelper(numOfBucket int, tb RoutingTable, c Contact) {
 	containsC := false
@@ -91,5 +96,5 @@ func delHelper(numOfBucket int, tb RoutingTable, c Contact) {
     }
 	if containsC {
 		tb.buckets[numOfBucket] = tb.buckets[numOfBucket][:,idx - 1] + tb.buckets[numOfBucket][idx + 1,:]
-	} 
+	}
 }

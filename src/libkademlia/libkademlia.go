@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
+	"os"
 )
 
 const (
@@ -98,8 +99,20 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
-	return nil, &CommandFailed{
-		"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
+	portnum := strconv.Itoa(port)
+	client, err := rpc.DialHTTP("tcp", host+":"+portnum)
+	if err !=nil {
+		log.Fatal("dialing:", err)
+	}
+	pim := PingMessage{k.SelfContact, NewRandomID()}
+	pom := new(PongMessage)
+  err = client.Call("KademliaRPC.Ping", pim, pom)
+	if err != nil {
+		return nil, &CommandFailed{
+			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
+	} else {
+		return pom.SelfContact, nil
+	}
 }
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
