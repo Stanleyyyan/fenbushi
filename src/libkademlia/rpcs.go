@@ -39,7 +39,7 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	pong.MsgID = CopyID(ping.MsgID)
 	// Specify the sender
 	pong.Sender = k.kademlia.SelfContact
-	//chan 
+	//chan
 	c := ping.Sender
 	k.kademlia.PingChan <- (&c)
 	fmt.Println("Pong")
@@ -103,9 +103,10 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
 		res.Nodes = append(res.Nodes, c1)
 	}
-	for ; len(res.Nodes) < 20 && bucketIdx > 0; bucketIdx-- {
+	bucketIdx = 159 - dis.PrefixLen() - 1
+	for ; len(res.Nodes) < 20 && bucketIdx >= 0; bucketIdx-- {
 		for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
-			if c1.NodeID.Equals(req.Sender.NodeID){
+			if !c1.NodeID.Equals(req.Sender.NodeID) {
 				res.Nodes = append(res.Nodes, c1)
 			}
 			if len(res.Nodes) == 20 {
@@ -114,6 +115,7 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 			}
 		}
 	}
+	bucketIdx = 159 - dis.PrefixLen() + 1
 	for ; len(res.Nodes) < 20 && bucketIdx < 160; bucketIdx++ {
 		for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
 			if c1.NodeID.Equals(req.Sender.NodeID){

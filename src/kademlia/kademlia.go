@@ -267,6 +267,9 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		if err != nil {
 			response = fmt.Sprintf("ERR: %s", err)
 		} else {
+			for _,c := range contacts {
+				fmt.Println("contacts: ", c.NodeID.AsString())
+			}
 			response = fmt.Sprintf("Ok: Got %d contacts", len(contacts))
 		}
 

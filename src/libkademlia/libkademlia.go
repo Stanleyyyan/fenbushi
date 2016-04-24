@@ -31,7 +31,7 @@ type Kademlia struct {
 	SelfContact Contact
 	K_buckets	RoutingTable
 	PingChan	chan *Contact
-	HashChan	chan Pair 
+	HashChan	chan Pair
 	H_Table		map[ID][]byte
 }
 
@@ -101,7 +101,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	fmt.Println(len(k.K_buckets.buckets))
 	for _, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID.Equals(nodeId) {
-			return &c1, nil 
+			return &c1, nil
 		}
 	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
@@ -203,6 +203,7 @@ func (k *Kademlia) HandlePing(){
 		select {
 		case newContact := <- k.PingChan:
 			k.UpdateRT(newContact)
+		default:
 		}
 	}
 }
@@ -213,7 +214,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	temp := contact.Host.String() + ":" + portnum
 	fmt.Println("DoStore:", temp)
 	//
-	
+
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
@@ -237,7 +238,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 
 func (k *Kademlia) UpdateHT(key ID, value []byte) error {
 	k.H_Table[key] = value
-	return nil	
+	return nil
 }
 
 func (k *Kademlia) HandleStore(){
