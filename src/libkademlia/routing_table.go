@@ -17,11 +17,6 @@ import (
 
 // Kademlia type. You can put whatever state you need in this.
 type RoutingTable struct {
-<<<<<<< HEAD
-
-=======
-	
->>>>>>> a6475674486b7fb74766a1c8e60be25188875587
 	buckets	[][]Contact
 	//Self_contact	Contact
 	addChan 	chan Contact
