@@ -10,20 +10,21 @@ import (
 	"net/http"
 	"net/rpc"
 	"strconv"
-	"os"
+	"errors"
+	// "os"
 )
 
 const (
 	alpha = 3
 	b     = 8 * IDBytes
-	k     = 20
+	// k     = 20
 )
 
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
-	K_buckets	Routing_table
+	K_buckets	RoutingTable
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
@@ -99,8 +100,11 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
-	portnum := strconv.Itoa(port)
-	client, err := rpc.DialHTTP("tcp", host+":"+portnum)
+	portnum := strconv.FormatInt(int64(port), 10)
+	temp := host.String() + ":" + portnum
+	fmt.Println(temp)
+	//
+	client, err := rpc.DialHTTP("tcp", host.String() + ":" + portnum)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
@@ -108,16 +112,16 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
 	if err != nil {
-		k.Update(PongMessage.Sender)
+		k.Update(&(pom.Sender))
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
-		return pom.SelfContact, nil
+		return &(pom.Sender), nil
 	}
 }
 
 func (k *Kademlia) Update(c *Contact) error {
-	dis := ping.Sender.NodeID.Xor(k.NodeID)
+	dis := c.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
@@ -128,25 +132,26 @@ func (k *Kademlia) Update(c *Contact) error {
 		}
 	}
 	if containSender {
+		temp := k.K_buckets.buckets[numOfBucket][idx]
 		k.K_buckets.buckets[numOfBucket] = 
-				k.K_buckets.buckets[numOfBucket][:idx - 1] +
-				k.K_buckets.buckets[numOfBucket][idx + 1:] + 
-				k.K_buckets.buckets[numOfBucket][idx]
-				return "Move to tail"
+				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
+						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
+		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
+				return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
-			k.K_buckets.buckets[numOfBucket].append(c)
-			return "k buckets not full, add to tail"
+			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+			return errors.New("k buckets not full, add to tail")
 		} else {
-			contact, err := 
-				k.DoPing(k.K_buckets.buckets[0].Host, k.K_buckets.buckets[0].Port)
+			_, err := 
+				k.DoPing(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
 				k.K_buckets.buckets[numOfBucket] = 
 					k.K_buckets.buckets[numOfBucket][1:]
-				k.K_buckets.buckets[numOfBucket].append(c)
-				return "head dead, replace head"
+				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+				return errors.New("head dead, replace head")
 			}else{
-				return "Discard"
+				return errors.New("Discard")
 			}
 		}
 	}

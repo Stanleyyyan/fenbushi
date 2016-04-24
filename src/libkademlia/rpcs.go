@@ -36,9 +36,9 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	pong.MsgID = CopyID(ping.MsgID)
 	// Specify the sender
-	pong.Sender = k.Kademlia.SelfContact
-	c := PingMessage.SelfContact
-	return k.kademlia.Update(c);
+	pong.Sender = k.kademlia.SelfContact
+	c := ping.Sender
+	return k.kademlia.Update(&c);
 }
 
 
