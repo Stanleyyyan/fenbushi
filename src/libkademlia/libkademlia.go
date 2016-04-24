@@ -121,7 +121,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
 	//
-	
+
 	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
