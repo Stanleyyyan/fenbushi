@@ -50,10 +50,10 @@ func (tb *Routing_Table) HandleChange() {
 
 
 func (tb *Routing_Table) AddContact(c Contact) {
-			dis := tb.NodeID.Xor(c.NodeID)
-			numOfBucket := 159 - dis.PrefixLen()
-			tb.buckets[numberOfBucket]
-			addHelper(numberOfBucket, tb, c)
+	dis := tb.NodeID.Xor(c.NodeID)
+	numOfBucket := 159 - dis.PrefixLen()
+	tb.buckets[numberOfBucket]
+	addHelper(numberOfBucket, tb, c)
 }
 
 
@@ -74,16 +74,16 @@ func addHelper(numOfBucket int, tb RoutingTable, c Contact) {
 			tb.buckets[numOfBucket].append(c)
 		} else {
 			// TODO:ping
-			
+
 		}
 	}
 }
 
 func (tb Routing_Table)DelContact(c *Contact) {
-			dis := tb.NodeID.Xor(c.NodeID)
-			numOfBucket := 159 - dis.PrefixLen()
-			tb.buckets[numberOfBucket]
-			delHelper(numberOfBucket, tb, c)
+	dis := tb.NodeID.Xor(c.NodeID)
+	numOfBucket := 159 - dis.PrefixLen()
+	tb.buckets[numberOfBucket]
+	delHelper(numberOfBucket, tb, c)
 }
 
 
