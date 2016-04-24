@@ -116,34 +116,34 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	}
 }
 
-func (k *Kademlia) Update(c *Contact, target *kademlia) error {
-	dis := ping.Sender.NodeID.Xor(target.NodeID)
+func (k *Kademlia) Update(c *Contact) error {
+	dis := ping.Sender.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
-	for index, c1 := range target.K_buckets.buckets[numOfBucket] {
+	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID == c.NodeID {
 			containSender = true
 			idx = index
 		}
 	}
 	if containSender {
-		target.K_buckets.buckets[numOfBucket] = 
-				target.K_buckets.buckets[numOfBucket][:idx - 1] +
-				target.K_buckets.buckets[numOfBucket][idx + 1:] + 
-				target.K_buckets.buckets[numOfBucket][idx]
+		k.K_buckets.buckets[numOfBucket] = 
+				k.K_buckets.buckets[numOfBucket][:idx - 1] +
+				k.K_buckets.buckets[numOfBucket][idx + 1:] + 
+				k.K_buckets.buckets[numOfBucket][idx]
 				return "Move to tail"
 	} else {
-		if len(target.K_buckets.buckets[numOfBucket]) < 20 {
-			target.K_buckets.buckets[numOfBucket].append(c)
+		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
+			k.K_buckets.buckets[numOfBucket].append(c)
 			return "k buckets not full, add to tail"
 		} else {
 			contact, err := 
-				target.DoPing(target.K_buckets.buckets[0].Host, target.K_buckets.buckets[0].Port)
+				k.DoPing(k.K_buckets.buckets[0].Host, k.K_buckets.buckets[0].Port)
 			if err != nil {
-				target.K_buckets.buckets[numOfBucket] = 
-					target.K_buckets.buckets[numOfBucket][1:]
-				target.K_buckets.buckets[numOfBucket].append(c)
+				k.K_buckets.buckets[numOfBucket] = 
+					k.K_buckets.buckets[numOfBucket][1:]
+				k.K_buckets.buckets[numOfBucket].append(c)
 				return "head dead, replace head"
 			}else{
 				return "Discard"
