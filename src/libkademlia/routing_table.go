@@ -4,7 +4,7 @@ package libkademlia
 // as a receiver for the RPC methods, which is required by that package.
 
 import (
-	// "fmt"
+	 "fmt"
 	// "log"
 	// "net"
 	// "net/http"
@@ -27,6 +27,7 @@ type RoutingTable struct {
 func NewRoutingTable(node Contact) *RoutingTable {
 	tb := new(RoutingTable)
 	tb.buckets = make([][]Contact, 160)
+	fmt.Println("the bucket lenght is ", len(tb.buckets))
 	// tb.addChan = make(chan *Contact)
 	// tb.delChan = make(chan *Contact)
 	return tb

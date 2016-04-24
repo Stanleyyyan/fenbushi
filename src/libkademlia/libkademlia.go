@@ -30,7 +30,7 @@ type Kademlia struct {
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = nodeID
-
+	k.K_buckets = RoutingTable{buckets: make([][]Contact, 160)}
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -102,7 +102,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	portnum := strconv.FormatInt(int64(port), 10)
 	temp := host.String() + ":" + portnum
-	fmt.Println(temp)
+	fmt.Println("DoPing:", temp)
 	//
 	client, err := rpc.DialHTTP("tcp", host.String() + ":" + portnum)
 	if err != nil {
@@ -121,10 +121,13 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 }
 
 func (k *Kademlia) Update(c *Contact) error {
+	fmt.Println("NodeID: ", c.NodeID)
 	dis := c.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
+	fmt.Println(numOfBucket)
+	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID == c.NodeID {
 			containSender = true
@@ -133,7 +136,7 @@ func (k *Kademlia) Update(c *Contact) error {
 	}
 	if containSender {
 		temp := k.K_buckets.buckets[numOfBucket][idx]
-		k.K_buckets.buckets[numOfBucket] = 
+		k.K_buckets.buckets[numOfBucket] =
 				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
@@ -143,10 +146,10 @@ func (k *Kademlia) Update(c *Contact) error {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 			return errors.New("k buckets not full, add to tail")
 		} else {
-			_, err := 
+			_, err :=
 				k.DoPing(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
-				k.K_buckets.buckets[numOfBucket] = 
+				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 				return errors.New("head dead, replace head")
