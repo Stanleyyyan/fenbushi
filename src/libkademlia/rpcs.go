@@ -37,31 +37,8 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	pong.MsgID = CopyID(ping.MsgID)
 	// Specify the sender
 	pong.Sender = k.Kademlia.SelfContact
-	// Update contact, etc
 	c := PingMessage.SelfContact
-	dis := ping.Sender.NodeID.Xor(k.Kademlia.NodeID)
-	numOfBucket := 159-dis.PrefixLen()
-	containsender := false
-	idx := 0
-	for index, c1 := range k.Kademlia.K_buckets.buckets[numOfBucket] {
-				if c1.NodeID == c.NodeID {
-						containsender = true
-						idx = index
-				}
-	}
-	if containsender {
-		k.Kademlia.K_buckets.buckets[numOfBucket] = k.Kademlia.K_buckets.buckets[numOfBucket][:,idx - 1] +
-									k.Kademlia.K_buckets.buckets[numOfBucket][idx + 1,:]
-									+ k.Kademlia.K_buckets.buckets[numOfBucket][idx]
-	} else {
-		if len(k.Kademlia.K_buckets.buckets[numOfBucket]) < 20 {
-			k.Kademlia.K_buckets.buckets[numOfBucket].append(c)
-		} else {
-			k.Kademlia.DoPing(k.Kademlia.K_buckets.buckets[0].Host, k.Kademlia.K_buckets.buckets[0].Port)
-
-		}
-	}
-	return nil
+	return k.kademlia.Update(c);
 }
 
 
