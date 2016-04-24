@@ -43,8 +43,8 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	if err != nil {
 		return nil
 	}
-	s.HandleHTTP(rpc.DefaultRPCPath+hostname+port,
-		rpc.DefaultDebugPath+hostname+port)
+	s.HandleHTTP(rpc.DefaultRPCPath+port,
+		rpc.DefaultDebugPath+port)
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		log.Fatal("Listen: ", err)
@@ -100,11 +100,11 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
-	portnum := strconv.FormatInt(int64(port), 10)
+	portnum := strconv.Itoa(int(port))
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
 	//
-	client, err := rpc.DialHTTP("tcp", host.String() + ":" + portnum)
+	client, err := rpc.DialHTTP("tcp",  host.String() + ":" + portnum)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
