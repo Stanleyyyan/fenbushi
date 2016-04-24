@@ -100,7 +100,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for _, c1 := range k.K_buckets.buckets[numOfBucket] {
-		if c1.NodeID == nodeId {
+		if c1.NodeID.Equals(nodeId) {
 			return &c1, nil 
 		}
 	}
@@ -152,7 +152,7 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
-		if c1.NodeID == c.NodeID {
+		if c1.NodeID.Equals(c.NodeID) {
 			containSender = true
 			idx = index
 		}
@@ -221,7 +221,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 		fmt.Println("error!")
 		log.Fatal("dialing:", err)
 	}
-	req := StoreRequest{Sender: *contact, MsgID: NewRandomID(), Key: key, Value: value}
+	req := StoreRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: key, Value: value}
 	res := new(StoreResult)
   	err = conn.Call("KademliaRPC.Store", req, res)
   	if err != nil {
@@ -252,7 +252,27 @@ func (k *Kademlia) HandleStore(){
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
-	return nil, &CommandFailed{"Not implemented"}
+
+	portnum := strconv.Itoa(int(contact.Port))
+	temp := contact.Host.String() + ":" + portnum
+	fmt.Println("DoStore:", temp)
+	//
+	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
+		rpc.DefaultRPCPath + portnum)
+	if err != nil {
+		fmt.Println("error!")
+		log.Fatal("dialing:", err)
+	}
+	req := FindNodeRequest{Sender: k.SelfContact, MsgID: NewRandomID(), NodeID: searchKey}
+	res := new(FindNodeResult)
+  	err = conn.Call("KademliaRPC.FindNode", req, res)
+  	if err != nil {
+		return nil, &CommandFailed{"Not implemented"}
+  	}else {
+  		fmt.Println("Find Node Completed")
+  		k.PingChan <- contact
+  		return res.Nodes, nil
+  	}
 }
 
 func (k *Kademlia) DoFindValue(contact *Contact,
