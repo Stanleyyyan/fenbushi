@@ -104,18 +104,23 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
 	//
-	client, err := rpc.DialHTTP("tcp",  host.String() + ":" + portnum)
+
+	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+		rpc.DefaultRPCPath + portnum)
+
 	if err != nil {
+		fmt.Println("error!")
 		log.Fatal("dialing:", err)
 	}
 	pim := PingMessage{k.SelfContact, NewRandomID()}
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
 	if err != nil {
-		k.Update(&(pom.Sender))
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
+		k.Update(&(pom.Sender))
+		fmt.Println("updating Done")
 		return &(pom.Sender), nil
 	}
 }
@@ -126,7 +131,7 @@ func (k *Kademlia) Update(c *Contact) error {
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
-	fmt.Println(numOfBucket)
+	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID == c.NodeID {
@@ -135,15 +140,22 @@ func (k *Kademlia) Update(c *Contact) error {
 		}
 	}
 	if containSender {
+		if len(k.K_buckets.buckets[numOfBucket]) == 1 {
+			fmt.Println("size is 1, add done")
+			return nil
+		}
+		fmt.Println("index is :", idx)
 		temp := k.K_buckets.buckets[numOfBucket][idx]
 		k.K_buckets.buckets[numOfBucket] =
 				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
+				fmt.Println("Moved to Tail!")
 				return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+			fmt.Println("k buckets not full, add to tail")
 			return errors.New("k buckets not full, add to tail")
 		} else {
 			_, err :=
@@ -152,12 +164,15 @@ func (k *Kademlia) Update(c *Contact) error {
 				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+				fmt.Println("head dead, replace head")
 				return errors.New("head dead, replace head")
 			}else{
+				fmt.Println("Discard!")
 				return errors.New("Discard")
 			}
 		}
 	}
+	return nil
 }
 
 
