@@ -25,12 +25,15 @@ type Kademlia struct {
 	NodeID      ID
 	SelfContact Contact
 	K_buckets	RoutingTable
+	PingChan	chan *Contact
+	H_Table		map[ID][]byte
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = nodeID
 	k.K_buckets = RoutingTable{buckets: make([][]Contact, 160)}
+	k.PingChan = make(chan *Contact)
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -104,29 +107,36 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
 	//
-	client, err := rpc.DialHTTP("tcp",  host.String() + ":" + portnum)
+	
+	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+		rpc.DefaultRPCPath + portnum)
+
 	if err != nil {
+		fmt.Println("error!")
 		log.Fatal("dialing:", err)
 	}
 	pim := PingMessage{k.SelfContact, NewRandomID()}
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
 	if err != nil {
-		k.Update(&(pom.Sender))
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
+		k.PingChan <- &(pom.Sender)
+		// k.Update(&(pom.Sender))
+		fmt.Println("updating Done")
 		return &(pom.Sender), nil
 	}
 }
 
-func (k *Kademlia) Update(c *Contact) error {
+func (k *Kademlia) UpdateRT(c *Contact) error {
+	fmt.Println("")
 	fmt.Println("NodeID: ", c.NodeID)
 	dis := c.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
-	fmt.Println(numOfBucket)
+	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID == c.NodeID {
@@ -135,15 +145,25 @@ func (k *Kademlia) Update(c *Contact) error {
 		}
 	}
 	if containSender {
+		if len(k.K_buckets.buckets[numOfBucket]) == 1 {
+			fmt.Println("size is 1, add done")
+			fmt.Printf("kademlia> ")
+			return nil
+		}
+		fmt.Println("index is :", idx)
 		temp := k.K_buckets.buckets[numOfBucket][idx]
 		k.K_buckets.buckets[numOfBucket] =
 				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
+				fmt.Println("Moved to Tail!")
+				fmt.Printf("kademlia> ")
 				return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+			fmt.Println("k buckets not full, add to tail")
+			fmt.Printf("kademlia> ")
 			return errors.New("k buckets not full, add to tail")
 		} else {
 			_, err :=
@@ -152,17 +172,47 @@ func (k *Kademlia) Update(c *Contact) error {
 				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+				fmt.Println("head dead, replace head")
+				fmt.Printf("kademlia> ")
 				return errors.New("head dead, replace head")
 			}else{
+				fmt.Println("Discard!")
+				fmt.Printf("kademlia> ")
 				return errors.New("Discard")
 			}
 		}
 	}
+	return nil
 }
 
+func (k *Kademlia) HandlePing(){
+	for {
+		select {
+		case newContact := <- k.PingChan:
+			k.UpdateRT(newContact)
+		}
+	}
+}
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	// TODO: Implement
+	// portnum := strconv.Itoa(int(contact.Port))
+	// temp := contact.Host.String() + ":" + portnum
+	// fmt.Println("DoStore:", temp)
+	// //
+	
+	// conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
+	// 	rpc.DefaultRPCPath + portnum)
+
+	// if err != nil {
+	// 	fmt.Println("error!")
+	// 	log.Fatal("dialing:", err)
+	// }
+	// req := StoreRequest{Sender : *contact, }
+ //  	err = client.Call("KademliaRPC.Store", pim, pom)
+
+
+
 	return &CommandFailed{"Not implemented"}
 }
 
