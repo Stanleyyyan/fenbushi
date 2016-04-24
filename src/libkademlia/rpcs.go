@@ -101,11 +101,15 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	fmt.Println("num of Bucket is :" ,bucketIdx)
 	fmt.Println(len(k.kademlia.K_buckets.buckets))
 	for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
-		res.Nodes = append(res.Nodes, c1)
+		fmt.Println("append nodeID ", c1.NodeID.AsString())
+		if !c1.NodeID.Equals(req.Sender.NodeID){
+			res.Nodes = append(res.Nodes, c1)
+		}
 	}
-	for ; len(res.Nodes) < 20 && bucketIdx > 0; bucketIdx-- {
-		for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
-			if c1.NodeID.Equals(req.Sender.NodeID){
+	for i := bucketIdx - 1; len(res.Nodes) < 20 && i >= 0; i-- {
+		for _, c1 := range k.kademlia.K_buckets.buckets[i] {
+			if !c1.NodeID.Equals(req.Sender.NodeID){
+				fmt.Println("append nodeID ", c1.NodeID.AsString())
 				res.Nodes = append(res.Nodes, c1)
 			}
 			if len(res.Nodes) == 20 {
@@ -114,9 +118,10 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 			}
 		}
 	}
-	for ; len(res.Nodes) < 20 && bucketIdx < 160; bucketIdx++ {
-		for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
-			if c1.NodeID.Equals(req.Sender.NodeID){
+	for i := bucketIdx + 1; len(res.Nodes) < 20 && i < 160; i++ {
+		for _, c1 := range k.kademlia.K_buckets.buckets[i] {
+			if !c1.NodeID.Equals(req.Sender.NodeID){
+				fmt.Println("append nodeID ", c1.NodeID.AsString())
 				res.Nodes = append(res.Nodes, c1)
 			}
 			if len(res.Nodes) == 20 {
