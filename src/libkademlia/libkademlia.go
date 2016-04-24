@@ -121,7 +121,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
 	//
-	
+
 	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
@@ -165,7 +165,7 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 		}
 		fmt.Println("index is :", idx)
 		temp := k.K_buckets.buckets[numOfBucket][idx]
-		k.K_buckets.buckets[numOfBucket] = 
+		k.K_buckets.buckets[numOfBucket] =
 				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
@@ -179,10 +179,10 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 			fmt.Printf("kademlia> ")
 			return errors.New("k buckets not full, add to tail")
 		} else {
-			_, err := 
+			_, err :=
 				k.DoPing(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
-				k.K_buckets.buckets[numOfBucket] = 
+				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 				fmt.Println("head dead, replace head")
