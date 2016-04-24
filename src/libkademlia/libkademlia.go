@@ -42,6 +42,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.PingChan = make(chan *Contact)
 	k.HashChan = make(chan Pair)
 	k.H_Table = make(map [ID][]byte)
+	
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -95,6 +96,13 @@ func (e *ContactNotFoundError) Error() string {
 func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	// TODO: Search through contacts, find specified ID
 	// Find contact with provided ID
+
+		fmt.Println("Start to print RT :")
+		for i := 0; i < 160; i++ {
+			for _, c1 := range k.K_buckets.buckets[i] {
+				fmt.Println("nodeID is :", c1.NodeID.AsString())
+			}
+		}
 	dis := nodeId.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	fmt.Println("num of Bucket is :" ,numOfBucket)
@@ -164,14 +172,18 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 			return nil
 		}
 		fmt.Println("index is :", idx)
-		temp := k.K_buckets.buckets[numOfBucket][idx]
-		k.K_buckets.buckets[numOfBucket] =
-				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
-						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
-		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
-				fmt.Println("Moved to Tail!")
-				fmt.Printf("kademlia> ")
-				return errors.New("Move to tail")
+		if idx != 0 {
+			temp := k.K_buckets.buckets[numOfBucket][idx]
+			k.K_buckets.buckets[numOfBucket] =
+					append(k.K_buckets.buckets[numOfBucket][:idx - 1],
+							k.K_buckets.buckets[numOfBucket][idx + 1:]...)
+			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
+		}else {
+			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket][idx + 1:], k.K_buckets.buckets[numOfBucket][idx])
+		}
+		fmt.Println("Moved to Tail!")
+		fmt.Printf("kademlia> ")
+		return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
