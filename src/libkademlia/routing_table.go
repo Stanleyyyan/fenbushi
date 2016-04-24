@@ -22,8 +22,8 @@ const (
 
 // Kademlia type. You can put whatever state you need in this.
 type RoutingTable struct {
-	
-	var buckets	[][]Contact
+
+	buckets	[][]Contact
 	//Self_contact	Contact
 	addChan 	chan Contact
 	delChan 	chan Contact
