@@ -33,6 +33,7 @@ func NewRoutingTable(node Contact) *RoutingTable {
 	return tb
 }
 
+
 // func (tb *Routing_Table) HandleChange() {
 // 	for{
 // 		select {
