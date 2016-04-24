@@ -47,6 +47,7 @@ func main() {
 
 	kadem := libkademlia.NewKademlia(listenStr)
 	go kadem.HandlePing()
+	go kadem.HandleStore()
 
 	// Confirm our server is up with a PING request and then exit.
 	// Your code should loop forever, reading instructions from stdin and

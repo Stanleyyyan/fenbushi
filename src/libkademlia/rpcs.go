@@ -64,7 +64,13 @@ type StoreResult struct {
 
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
-
+	fmt.Println("Store!!")
+	res.MsgID = CopyID(req.MsgID)
+	res.Err = nil
+	k.kademlia.HashChan <- Pair{Key: req.Key, Value: req.Value}
+	c := req.Sender
+	k.kademlia.PingChan <- (&c)
+	fmt.Println("Store Done")
 	return nil
 }
 
