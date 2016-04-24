@@ -101,19 +101,57 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	portnum := strconv.Itoa(port)
 	client, err := rpc.DialHTTP("tcp", host+":"+portnum)
-	if err !=nil {
+	if err != nil {
 		log.Fatal("dialing:", err)
 	}
 	pim := PingMessage{k.SelfContact, NewRandomID()}
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
 	if err != nil {
+		k.Update(PongMessage.Sender)
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
 		return pom.SelfContact, nil
 	}
 }
+
+func (k *Kademlia) Update(c *Contact, target *kademlia) error {
+	dis := ping.Sender.NodeID.Xor(target.NodeID)
+	numOfBucket := 159 - dis.PrefixLen()
+	containSender := false
+	idx := 0
+	for index, c1 := range target.K_buckets.buckets[numOfBucket] {
+		if c1.NodeID == c.NodeID {
+			containSender = true
+			idx = index
+		}
+	}
+	if containSender {
+		target.K_buckets.buckets[numOfBucket] = 
+				target.K_buckets.buckets[numOfBucket][:idx - 1] +
+				target.K_buckets.buckets[numOfBucket][idx + 1:] + 
+				target.K_buckets.buckets[numOfBucket][idx]
+				return "Move to tail"
+	} else {
+		if len(target.K_buckets.buckets[numOfBucket]) < 20 {
+			target.K_buckets.buckets[numOfBucket].append(c)
+			return "k buckets not full, add to tail"
+		} else {
+			contact, err := 
+				target.DoPing(target.K_buckets.buckets[0].Host, target.K_buckets.buckets[0].Port)
+			if err != nil {
+				target.K_buckets.buckets[numOfBucket] = 
+					target.K_buckets.buckets[numOfBucket][1:]
+				target.K_buckets.buckets[numOfBucket].append(c)
+				return "head dead, replace head"
+			}else{
+				return "Discard"
+			}
+		}
+	}
+}
+
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	// TODO: Implement
