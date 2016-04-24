@@ -100,41 +100,27 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// idx := 0
 	fmt.Println("num of Bucket is :" ,bucketIdx)
 	fmt.Println(len(k.kademlia.K_buckets.buckets))
-	for _, c1 := range k.kademlia.K_buckets.buckets[bucketIdx] {
-		fmt.Println("append nodeID ", c1.NodeID.AsString())
-		if !c1.NodeID.Equals(req.Sender.NodeID){
-			res.Nodes = append(res.Nodes, c1)
+	k.kademlia.FindReqChan <- req
+
+	for res.Nodes == nil {
+		select {
+		case ret := <- k.kademlia.FindResChan:
+			if ret.MsgID.Equals(res.MsgID){
+				res.Nodes = ret.Nodes
+			}else {
+				k.kademlia.FindResChan <- ret
+			}
+
 		}
 	}
-	for i := bucketIdx - 1; len(res.Nodes) < 20 && i >= 0; i-- {
-		for _, c1 := range k.kademlia.K_buckets.buckets[i] {
-			if !c1.NodeID.Equals(req.Sender.NodeID){
-				fmt.Println("append nodeID ", c1.NodeID.AsString())
-				res.Nodes = append(res.Nodes, c1)
-			}
-			if len(res.Nodes) == 20 {
-				fmt.Println("K is 20")
-				return nil
-			}
-		}
-	}
-	for i := bucketIdx + 1; len(res.Nodes) < 20 && i < 160; i++ {
-		for _, c1 := range k.kademlia.K_buckets.buckets[i] {
-			if !c1.NodeID.Equals(req.Sender.NodeID){
-				fmt.Println("append nodeID ", c1.NodeID.AsString())
-				res.Nodes = append(res.Nodes, c1)
-			}
-			if len(res.Nodes) == 20 {
-				fmt.Println("K is 20")
-				return nil
-			}
-		}
-	}
+
 	fmt.Println("K is ", len(res.Nodes))
 	c := req.Sender
 	k.kademlia.PingChan <- (&c)
 	fmt.Println("FindNode Done")
 	return nil
+
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////

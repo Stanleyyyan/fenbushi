@@ -32,17 +32,21 @@ type Kademlia struct {
 	K_buckets	RoutingTable
 	PingChan	chan *Contact
 	HashChan	chan Pair 
+	FindReqChan	chan FindNodeRequest
+	FindResChan chan *FindNodeResult
 	H_Table		map[ID][]byte
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = nodeID
-	k.K_buckets = RoutingTable{buckets: make([][]Contact, 160)}
-	k.PingChan = make(chan *Contact)
-	k.HashChan = make(chan Pair)
+	k.K_buckets 	= RoutingTable{buckets: make([][]Contact, 160)}
+	k.PingChan 		= make(chan *Contact)
+	k.HashChan 		= make(chan Pair)
+	k.FindReqChan 	= make(chan FindNodeRequest)
+	k.FindResChan	= make(chan *FindNodeResult)
 	k.H_Table = make(map [ID][]byte)
-	
+
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -261,6 +265,19 @@ func (k *Kademlia) HandleStore(){
 	}
 }
 
+func (k *Kademlia) Handler(){
+	for {
+		select {
+		case newPair := <- k.HashChan:
+			k.UpdateHT(newPair.Key, newPair.Value)
+		case newContact := <- k.PingChan:
+			k.UpdateRT(newContact)
+		case newFindNodeReq := <- k.FindReqChan:
+			k.FindResChan <- k.GetNode(newFindNodeReq)
+		}
+	}
+}
+
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
@@ -286,6 +303,48 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
   		return res.Nodes, nil
   	}
 }
+
+func (k *Kademlia) GetNode(req FindNodeRequest) *FindNodeResult {
+	// TODO: Implement.
+	res := new(FindNodeResult)
+	res.MsgID = CopyID(req.MsgID)
+
+	dis := req.NodeID.Xor(k.NodeID)
+	bucketIdx := 159 - dis.PrefixLen()
+
+	for _, c1 := range k.K_buckets.buckets[bucketIdx] {
+		if !c1.NodeID.Equals(req.Sender.NodeID){
+			fmt.Println("append nodeID ", c1.NodeID.AsString())
+			res.Nodes = append(res.Nodes, c1)
+		}
+	}
+	for i := bucketIdx - 1; len(res.Nodes) < 20 && i >= 0; i-- {
+		for _, c1 := range k.K_buckets.buckets[i] {
+			if !c1.NodeID.Equals(req.Sender.NodeID){
+				fmt.Println("append nodeID ", c1.NodeID.AsString())
+				res.Nodes = append(res.Nodes, c1)
+			}
+			if len(res.Nodes) == 20 {
+				fmt.Println("K is 20")
+				return res
+			}
+		}
+	}
+	for i := bucketIdx + 1; len(res.Nodes) < 20 && i < 160; i++ {
+		for _, c1 := range k.K_buckets.buckets[i] {
+			if !c1.NodeID.Equals(req.Sender.NodeID){
+				fmt.Println("append nodeID ", c1.NodeID.AsString())
+				res.Nodes = append(res.Nodes, c1)
+			}
+			if len(res.Nodes) == 20 {
+				fmt.Println("K is 20")
+				return res;
+			}
+		}
+	}
+	return res
+}
+
 
 func (k *Kademlia) DoFindValue(contact *Contact,
 	searchKey ID) (value []byte, contacts []Contact, err error) {
