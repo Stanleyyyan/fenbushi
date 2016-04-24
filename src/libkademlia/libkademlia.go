@@ -129,7 +129,8 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	}
 }
 
-func (k *Kademlia) Update(c *Contact) error {
+func (k *Kademlia) UpdateRT(c *Contact) error {
+	fmt.Println("")
 	fmt.Println("NodeID: ", c.NodeID)
 	dis := c.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
@@ -146,6 +147,7 @@ func (k *Kademlia) Update(c *Contact) error {
 	if containSender {
 		if len(k.K_buckets.buckets[numOfBucket]) == 1 {
 			fmt.Println("size is 1, add done")
+			fmt.Printf("kademlia> ")
 			return nil
 		}
 		fmt.Println("index is :", idx)
@@ -155,11 +157,13 @@ func (k *Kademlia) Update(c *Contact) error {
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
 				fmt.Println("Moved to Tail!")
+				fmt.Printf("kademlia> ")
 				return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 			fmt.Println("k buckets not full, add to tail")
+			fmt.Printf("kademlia> ")
 			return errors.New("k buckets not full, add to tail")
 		} else {
 			_, err := 
@@ -169,9 +173,11 @@ func (k *Kademlia) Update(c *Contact) error {
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 				fmt.Println("head dead, replace head")
+				fmt.Printf("kademlia> ")
 				return errors.New("head dead, replace head")
 			}else{
 				fmt.Println("Discard!")
+				fmt.Printf("kademlia> ")
 				return errors.New("Discard")
 			}
 		}
@@ -183,25 +189,29 @@ func (k *Kademlia) HandlePing(){
 	for {
 		select {
 		case newContact := <- k.PingChan:
-			k.Update(newContact)
+			k.UpdateRT(newContact)
 		}
 	}
 }
 
 func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
-	// // TODO: Implement
+	// TODO: Implement
 	// portnum := strconv.Itoa(int(contact.Port))
 	// temp := contact.Host.String() + ":" + portnum
 	// fmt.Println("DoStore:", temp)
 	// //
 	
-	// conn, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+	// conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 	// 	rpc.DefaultRPCPath + portnum)
 
 	// if err != nil {
 	// 	fmt.Println("error!")
 	// 	log.Fatal("dialing:", err)
 	// }
+	// req := StoreRequest{Sender : *contact, }
+ //  	err = client.Call("KademliaRPC.Store", pim, pom)
+
+
 
 	return &CommandFailed{"Not implemented"}
 }
