@@ -22,7 +22,7 @@ func main() {
 	// TODO: PUT YOUR GROUP'S NET IDS HERE!
 	// Example:
 	// netIds := "abc123 def456 ghi789"
-	netIds := "wzm416"
+	netIds := "omg049 wjz100 ych123"
 	if len(netIds) == 0 {
 		log.Fatal("Variable containing group's net IDs is not set!\n")
 	}
@@ -51,8 +51,9 @@ func main() {
 	// Your code should loop forever, reading instructions from stdin and
 	// printing their results to stdout. See README.txt for more details.
 	hostname, port, err := net.SplitHostPort(firstPeerStr)
+	fmt.Println(hostname)
 	client, err := rpc.DialHTTPPath("tcp", firstPeerStr,
-		rpc.DefaultRPCPath+hostname+port)
+		rpc.DefaultRPCPath + port)
 	if err != nil {
 		log.Fatal("DialHTTP: ", err)
 	}
@@ -66,6 +67,7 @@ func main() {
 	var pong libkademlia.PongMessage
 	err = client.Call("KademliaRPC.Ping", ping, &pong)
 	if err != nil {
+		fmt.Println("terminal")
 		log.Fatal("Call: ", err)
 	}
 	log.Printf("ping msgID: %s\n", ping.MsgID.AsString())

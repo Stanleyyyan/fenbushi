@@ -30,7 +30,7 @@ type Kademlia struct {
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID = nodeID
-
+	k.K_buckets = RoutingTable{buckets: make([][]Contact, 160)}
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -43,8 +43,8 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	if err != nil {
 		return nil
 	}
-	s.HandleHTTP(rpc.DefaultRPCPath+hostname+port,
-		rpc.DefaultDebugPath+hostname+port)
+	s.HandleHTTP(rpc.DefaultRPCPath+port,
+		rpc.DefaultDebugPath+port)
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		log.Fatal("Listen: ", err)
@@ -100,11 +100,11 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
-	portnum := strconv.FormatInt(int64(port), 10)
+	portnum := strconv.Itoa(int(port))
 	temp := host.String() + ":" + portnum
-	fmt.Println(temp)
+	fmt.Println("DoPing:", temp)
 	//
-	client, err := rpc.DialHTTP("tcp", host.String() + ":" + portnum)
+	client, err := rpc.DialHTTP("tcp",  host.String() + ":" + portnum)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
@@ -121,10 +121,13 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 }
 
 func (k *Kademlia) Update(c *Contact) error {
+	fmt.Println("NodeID: ", c.NodeID)
 	dis := c.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
+	fmt.Println(numOfBucket)
+	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID == c.NodeID {
 			containSender = true
