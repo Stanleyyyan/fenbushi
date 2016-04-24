@@ -133,7 +133,7 @@ func (k *Kademlia) Update(c *Contact) error {
 	}
 	if containSender {
 		temp := k.K_buckets.buckets[numOfBucket][idx]
-		k.K_buckets.buckets[numOfBucket] = 
+		k.K_buckets.buckets[numOfBucket] =
 				append(k.K_buckets.buckets[numOfBucket][:idx - 1],
 						k.K_buckets.buckets[numOfBucket][idx + 1:]...)
 		k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], temp)
@@ -143,10 +143,10 @@ func (k *Kademlia) Update(c *Contact) error {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 			return errors.New("k buckets not full, add to tail")
 		} else {
-			_, err := 
+			_, err :=
 				k.DoPing(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
-				k.K_buckets.buckets[numOfBucket] = 
+				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
 				return errors.New("head dead, replace head")
