@@ -45,7 +45,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.HashChan 		= make(chan Pair)
 	k.FindReqChan 	= make(chan FindNodeRequest)
 	k.FindResChan	= make(chan *FindNodeResult)
-	k.H_Table = make(map [ID][]byte)
+	k.H_Table		= make(map [ID][]byte)
 
 	// TODO: Initialize other state here as you add functionality.
 
@@ -284,7 +284,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 
 	portnum := strconv.Itoa(int(contact.Port))
 	temp := contact.Host.String() + ":" + portnum
-	fmt.Println("DoStore:", temp)
+	fmt.Println("DoFind:", temp)
 	//
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
@@ -311,8 +311,9 @@ func (k *Kademlia) GetNode(req FindNodeRequest) *FindNodeResult {
 
 	dis := req.NodeID.Xor(k.NodeID)
 	bucketIdx := 159 - dis.PrefixLen()
-
+	fmt.Println("distance is ", bucketIdx)
 	for _, c1 := range k.K_buckets.buckets[bucketIdx] {
+		fmt.Println("current nodeID ", c1.NodeID.AsString())
 		if !c1.NodeID.Equals(req.Sender.NodeID){
 			fmt.Println("append nodeID ", c1.NodeID.AsString())
 			res.Nodes = append(res.Nodes, c1)
@@ -342,6 +343,7 @@ func (k *Kademlia) GetNode(req FindNodeRequest) *FindNodeResult {
 			}
 		}
 	}
+	fmt.Println("not matched")
 	return res
 }
 

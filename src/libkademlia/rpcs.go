@@ -91,9 +91,10 @@ type FindNodeResult struct {
 
 func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	// TODO: Implement.
+	fmt.Println("FindNode")
 	res.MsgID = CopyID(req.MsgID)
-
 	dis := req.NodeID.Xor(k.kademlia.NodeID)
+	fmt.Println("res MsgID is ",res.MsgID.AsString())
 	bucketIdx := 159 - dis.PrefixLen()
 	// containSender := false
 	// counter := 0
@@ -101,20 +102,20 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	fmt.Println("num of Bucket is :" ,bucketIdx)
 	fmt.Println(len(k.kademlia.K_buckets.buckets))
 	k.kademlia.FindReqChan <- req
-
-	for res.Nodes == nil {
+	boo := true
+	for boo {
 		select {
-		case ret := <- k.kademlia.FindResChan:
-			if ret.MsgID.Equals(res.MsgID){
-				res.Nodes = ret.Nodes
-			}else {
-				k.kademlia.FindResChan <- ret
-			}
-
+		case ret := <- k.kademlia.FindResChan: 
+				fmt.Println("ret MsgID is ", ret.MsgID.AsString())
+				if ret.MsgID.Equals(res.MsgID){
+					res.Nodes = ret.Nodes
+					boo = false
+				}else {
+					k.kademlia.FindResChan <- ret
+				}
 		}
 	}
 
-	fmt.Println("K is ", len(res.Nodes))
 	c := req.Sender
 	k.kademlia.PingChan <- (&c)
 	fmt.Println("FindNode Done")
