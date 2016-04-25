@@ -5,7 +5,7 @@ import (
 	"net"
 	"strconv"
 	"testing"
-	//"time"
+	"time"
 )
 
 func StringToIpPort(laddr string) (ip net.IP, port uint16, err error) {
@@ -42,6 +42,8 @@ func TestPing(t *testing.T) {
 			"1 in its buckets before ping instance 1")
 	}
 	instance1.DoPing(host2, port2)
+  	duration := time.Duration(1)*time.Second
+  	time.Sleep(duration)
 	contact2, err = instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
@@ -73,6 +75,8 @@ func TestStore(t *testing.T) {
 	instance2 := NewKademlia("localhost:7893")
 	host2, port2, _ := StringToIpPort("localhost:7893")
 	instance1.DoPing(host2, port2)
+  	duration := time.Duration(1)*time.Second
+  	time.Sleep(duration)
 	contact2, err := instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
@@ -108,6 +112,8 @@ func TestFindNode(t *testing.T) {
 	instance2 := NewKademlia("localhost:7895")
 	host2, port2, _ := StringToIpPort("localhost:7895")
 	instance1.DoPing(host2, port2)
+  	duration := time.Duration(1)*time.Second
+  	time.Sleep(duration)
 	contact2, err := instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
@@ -149,6 +155,8 @@ func TestFindValue(t *testing.T) {
 	instance2 := NewKademlia("localhost:7927")
 	host2, port2, _ := StringToIpPort("localhost:7927")
 	instance1.DoPing(host2, port2)
+  	duration := time.Duration(1)*time.Second
+  	time.Sleep(duration)
 	contact2, err := instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")

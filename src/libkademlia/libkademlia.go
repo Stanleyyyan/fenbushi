@@ -50,6 +50,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.FindValueReqChan 	= make(chan FindValueRequest)
 	k.FindValueResChan	= make(chan *FindValueResult)
 	k.H_Table 			= make(map [ID][]byte)
+	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -84,6 +85,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 		}
 	}
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
+	k.DoPing(host, uint16(port_int))
 	return k
 }
 
@@ -104,18 +106,13 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	// TODO: Search through contacts, find specified ID
 	// Find contact with provided ID
 
-		fmt.Println("Start to print RT :")
-		for i := 0; i < 160; i++ {
-			for _, c1 := range k.K_buckets.buckets[i] {
-				fmt.Println("nodeID is :", c1.NodeID.AsString())
-			}
-		}
 	dis := nodeId.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for _, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID.Equals(nodeId) {
+			fmt.Println("target node Found!")
 			return &c1, nil
 		}
 	}

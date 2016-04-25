@@ -46,7 +46,7 @@ func main() {
 	log.Println("Group: " + netIds + "\n")
 
 	kadem := libkademlia.NewKademlia(listenStr)
-	go kadem.Handler()
+	// go kadem.Handler()
 	// go kadem.HandleStore()
 
 	// Confirm our server is up with a PING request and then exit.
