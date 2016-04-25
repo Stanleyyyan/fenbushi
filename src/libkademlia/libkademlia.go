@@ -21,8 +21,9 @@ const (
 )
 
 type Pair struct {
-	Key ID
-	Value []byte
+	Key 	ID
+	Value 	[]byte
+	MsgID	ID
 }
 
 // Kademlia type. You can put whatever state you need in this.
@@ -30,12 +31,14 @@ type Kademlia struct {
 	NodeID      		ID
 	SelfContact 		Contact
 	K_buckets			RoutingTable
-	PingChan			chan *Contact
+	PingChan			chan *UpdateMessage
 	HashChan			chan Pair
 	FindReqChan			chan FindNodeRequest
 	FindResChan 		chan *FindNodeResult
 	FindValueReqChan	chan FindValueRequest
 	FindValueResChan 	chan *FindValueResult
+	AckChan				chan AckMessage
+	HTAckChan			chan AckMessage
 	H_Table				map[ID][]byte
 }
 
@@ -43,12 +46,14 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
 	k.NodeID 			= nodeID
 	k.K_buckets 		= RoutingTable{buckets: make([][]Contact, 160)}
-	k.PingChan 			= make(chan *Contact)
+	k.PingChan 			= make(chan *UpdateMessage)
 	k.HashChan 			= make(chan Pair)
 	k.FindReqChan 		= make(chan FindNodeRequest)
 	k.FindResChan		= make(chan *FindNodeResult)
 	k.FindValueReqChan 	= make(chan FindValueRequest)
 	k.FindValueResChan	= make(chan *FindValueResult)
+	k.AckChan			= make(chan AckMessage)
+	k.HTAckChan			= make(chan AckMessage)
 	k.H_Table 			= make(map [ID][]byte)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
@@ -132,7 +137,6 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	portnum := strconv.Itoa(int(port))
 	temp := host.String() + ":" + portnum
 	fmt.Println("DoPing:", temp)
-	//
 
 	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
@@ -142,37 +146,56 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		log.Fatal("dialing:", err)
 	}
 	pim := PingMessage{k.SelfContact, NewRandomID()}
+	fmt.Println("PingMessage ID is: ", pim.MsgID.AsString())
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = pim.MsgID
+	updateMessage.NewContact = pom.Sender
+	fmt.Printf("get response and new updateMessage!")
 	if err != nil {
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
 	} else {
-		k.PingChan <- &(pom.Sender)
+		k.PingChan <- updateMessage
+		flag := true
+		for flag {
+			select {
+			case ack := <- k.AckChan:
+				if ack.MsgID.Equals(pim.MsgID) {
+					flag = false
+				}else {
+					k.AckChan <- ack
+				}
+			}
+		}
 		fmt.Println("updating Done")
 		return &(pom.Sender), nil
 	}
 }
 
-func (k *Kademlia) UpdateRT(c *Contact) error {
+func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 	fmt.Println("")
-	fmt.Println("NodeID: ", c.NodeID)
-	dis := c.NodeID.Xor(k.NodeID)
+	fmt.Println("NodeID: ", c.NewContact.NodeID)
+	ack := AckMessage{MsgID: c.MsgID}
+
+	dis := c.NewContact.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
 	fmt.Println("num of Bucket is :" ,numOfBucket)
 	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
-		if c1.NodeID.Equals(c.NodeID) {
+		if c1.NodeID.Equals(c.NewContact.NodeID) {
 			containSender = true
 			idx = index
 		}
 	}
 	if containSender {
 		if len(k.K_buckets.buckets[numOfBucket]) == 1 {
-			fmt.Println("size is 1, add done")
 			fmt.Printf("kademlia> ")
+			k.AckChan <- ack
 			return nil
 		}
 		fmt.Println("index is :", idx)
@@ -187,12 +210,14 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 		}
 		fmt.Println("Moved to Tail!")
 		fmt.Printf("kademlia> ")
+		k.AckChan <- ack
 		return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
-			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], (c.NewContact))
 			fmt.Println("k buckets not full, add to tail")
 			fmt.Printf("kademlia> ")
+			k.AckChan <- ack
 			return errors.New("k buckets not full, add to tail")
 		} else {
 			_, err :=
@@ -200,13 +225,15 @@ func (k *Kademlia) UpdateRT(c *Contact) error {
 			if err != nil {
 				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
-				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], *c)
+				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], (c.NewContact))
 				fmt.Println("head dead, replace head")
 				fmt.Printf("kademlia> ")
+				k.AckChan <- ack
 				return errors.New("head dead, replace head")
 			}else{
 				fmt.Println("Discard!")
 				fmt.Printf("kademlia> ")
+				k.AckChan <- ack
 				return errors.New("Discard")
 			}
 		}
@@ -241,36 +268,53 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	req := StoreRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: key, Value: value}
 	res := new(StoreResult)
   	err = conn.Call("KademliaRPC.Store", req, res)
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = *contact
+
   	if err != nil {
   		fmt.Println(err)
 		log.Fatal("RPC:", err)
 		return &CommandFailed{"DoStore Failed"}
   	} else {
-  		k.PingChan <- contact
+  		k.PingChan <- updateMessage
+		flag := true
+		for flag {
+			select {
+			case ack := <- k.AckChan:
+				if ack.MsgID.Equals(req.MsgID){
+					flag = false
+				}else {
+					k.AckChan <- ack
+				}
+			}
+		}
   		fmt.Println("DoStore complete!")
   	}
   	return nil
 }
 
-func (k *Kademlia) UpdateHT(key ID, value []byte) error {
+func (k *Kademlia) UpdateHT(key ID, value []byte, MsgID ID) AckMessage {
 	k.H_Table[key] = value
-	return nil
+	ack := AckMessage{MsgID: MsgID}
+	return ack
 }
-
-func (k *Kademlia) HandleStore(){
-	for {
-		select {
-		case newPair := <- k.HashChan:
-			k.UpdateHT(newPair.Key, newPair.Value)
-		}
-	}
-}
+//
+// func (k *Kademlia) HandleStore(){
+// 	for {
+// 		select {
+// 		case newPair := <- k.HashChan:
+// 			k.UpdateHT(newPair.Key, newPair.Value)
+// 		}
+// 	}
+// }
 
 func (k *Kademlia) Handler(){
 	for {
 		select {
 		case newPair := <- k.HashChan:
-			k.UpdateHT(newPair.Key, newPair.Value)
+			k.HTAckChan <- k.UpdateHT(newPair.Key, newPair.Value, newPair.MsgID)
 		case newContact := <- k.PingChan:
 			k.UpdateRT(newContact)
 		case newFindNodeReq := <- k.FindReqChan:
@@ -297,11 +341,26 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	req := FindNodeRequest{Sender: k.SelfContact, MsgID: NewRandomID(), NodeID: searchKey}
 	res := new(FindNodeResult)
   	err = conn.Call("KademliaRPC.FindNode", req, res)
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = *contact
   	if err != nil {
 		return nil, &CommandFailed{"Not implemented"}
   	}else {
-  		fmt.Println("Find Node Completed")
-  		k.PingChan <- contact
+  		k.PingChan <- updateMessage
+		flag := true
+		for flag {
+			select {
+			case ack := <- k.AckChan:
+				if ack.MsgID.Equals(req.MsgID){
+					flag = false
+				}else {
+					k.AckChan <- ack
+				}
+			}
+		}
+		fmt.Println("Find Node Completed")
   		return res.Nodes, nil
   	}
 }
@@ -359,22 +418,35 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 	//
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
-	fmt.Println("1")
+
 	if err != nil {
 		fmt.Println("error!")
 		log.Fatal("dialing:", err)
 	}
-	fmt.Println("2")
+
 	req := FindValueRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: searchKey}
 	res := new(FindValueResult)
-	fmt.Println("3")
   	err = conn.Call("KademliaRPC.FindValue", req, res)
-	fmt.Println("call FindValue")
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = *contact
   	if err != nil {
 		return nil, nil, &CommandFailed{"Not implemented"}
   	}else {
-  		fmt.Println("Find Node Completed")
-  		k.PingChan <- contact
+  		k.PingChan <- updateMessage
+		flag := true
+		for flag {
+			select {
+			case ack := <- k.AckChan:
+				if ack.MsgID.Equals(req.MsgID){
+					flag = false
+				}else {
+					k.AckChan <- ack
+				}
+			}
+		}
+		fmt.Println("Find Node Completed")
   		return res.Value, res.Nodes, nil
   	}
 	return nil, nil, &CommandFailed{"Not implemented"}

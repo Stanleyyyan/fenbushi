@@ -33,6 +33,15 @@ type PongMessage struct {
 	Sender Contact
 }
 
+type UpdateMessage struct {
+	MsgID		ID
+	NewContact	Contact
+}
+
+type AckMessage struct {
+	MsgID		ID
+}
+
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	fmt.Println("Ping !!")
@@ -40,8 +49,23 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// Specify the sender
 	pong.Sender = k.kademlia.SelfContact
 	//chan
-	c := ping.Sender
-	k.kademlia.PingChan <- (&c)
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = ping.MsgID
+	updateMessage.NewContact = ping.Sender
+
+	k.kademlia.PingChan <- updateMessage
+	flag := true
+	for flag {
+		select {
+		case ack := <- k.kademlia.AckChan:
+			if ack.MsgID.Equals(ping.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.AckChan <- ack
+			}
+		}
+	}
 	fmt.Println("Pong")
 	return nil
 }
@@ -67,9 +91,34 @@ func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	fmt.Println("Store!!")
 	res.MsgID = CopyID(req.MsgID)
 	res.Err = nil
-	k.kademlia.HashChan <- Pair{Key: req.Key, Value: req.Value}
-	c := req.Sender
-	k.kademlia.PingChan <- (&c)
+	k.kademlia.HashChan <- Pair{Key: req.Key, Value: req.Value, MsgID: req.MsgID}
+	flag := true
+	for flag {
+		select {
+		case ack := <- k.kademlia.HTAckChan:
+			if ack.MsgID.Equals(req.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.HTAckChan <- ack
+			}
+		}
+	}
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = req.Sender
+	k.kademlia.PingChan <- updateMessage
+	flag = true
+	for flag {
+		select {
+		case ack := <- k.kademlia.AckChan:
+			if ack.MsgID.Equals(req.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.AckChan <- ack
+			}
+		}
+	}
 	fmt.Println("Store Done")
 	return nil
 }
@@ -115,8 +164,22 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 		}
 	}
 
-	c := req.Sender
-	k.kademlia.PingChan <- (&c)
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = req.Sender
+
+	k.kademlia.PingChan <- updateMessage
+	flag = true
+	for flag {
+		select {
+		case ack := <- k.kademlia.AckChan:
+			if ack.MsgID.Equals(req.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.AckChan <- ack
+			}
+		}
+	}
 	fmt.Println("FindNode Done")
 	return nil
 }
@@ -163,8 +226,22 @@ func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) erro
 	}
 
 	fmt.Println("K is ", len(res.Nodes))
-	c := req.Sender
-	k.kademlia.PingChan <- (&c)
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = req.Sender
+
+	k.kademlia.PingChan <- updateMessage
+	flag = true
+	for flag {
+		select {
+		case ack := <- k.kademlia.AckChan:
+			if ack.MsgID.Equals(req.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.AckChan <- ack
+			}
+		}
+	}
 	fmt.Println("FindNode Done")
 	return nil
 

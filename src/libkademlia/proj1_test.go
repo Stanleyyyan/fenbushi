@@ -42,8 +42,8 @@ func TestPing(t *testing.T) {
 			"1 in its buckets before ping instance 1")
 	}
 	instance1.DoPing(host2, port2)
-  	duration := time.Duration(1)*time.Second
-  	time.Sleep(duration)
+ //  	duration := time.Duration(1)*time.Second
+ //  	time.Sleep(duration)
 	contact2, err = instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
