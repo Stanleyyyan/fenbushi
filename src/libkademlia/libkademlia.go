@@ -27,26 +27,29 @@ type Pair struct {
 
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
-	NodeID      ID
-	SelfContact Contact
-	K_buckets	RoutingTable
-	PingChan	chan *Contact
-	HashChan	chan Pair 
-	FindReqChan	chan FindNodeRequest
-	FindResChan chan *FindNodeResult
-	H_Table		map[ID][]byte
+	NodeID      		ID
+	SelfContact 		Contact
+	K_buckets			RoutingTable
+	PingChan			chan *Contact
+	HashChan			chan Pair
+	FindReqChan			chan FindNodeRequest
+	FindResChan 		chan *FindNodeResult
+	FindValueReqChan	chan FindValueRequest
+	FindValueResChan 	chan *FindValueResult
+	H_Table				map[ID][]byte
 }
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
-	k.NodeID = nodeID
-	k.K_buckets 	= RoutingTable{buckets: make([][]Contact, 160)}
-	k.PingChan 		= make(chan *Contact)
-	k.HashChan 		= make(chan Pair)
-	k.FindReqChan 	= make(chan FindNodeRequest)
-	k.FindResChan	= make(chan *FindNodeResult)
-	k.H_Table		= make(map [ID][]byte)
-
+	k.NodeID 			= nodeID
+	k.K_buckets 		= RoutingTable{buckets: make([][]Contact, 160)}
+	k.PingChan 			= make(chan *Contact)
+	k.HashChan 			= make(chan Pair)
+	k.FindReqChan 		= make(chan FindNodeRequest)
+	k.FindResChan		= make(chan *FindNodeResult)
+	k.FindValueReqChan 	= make(chan FindValueRequest)
+	k.FindValueResChan	= make(chan *FindValueResult)
+	k.H_Table 			= make(map [ID][]byte)
 	// TODO: Initialize other state here as you add functionality.
 
 	// Set up RPC server
@@ -113,7 +116,7 @@ func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	fmt.Println(len(k.K_buckets.buckets))
 	for _, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID.Equals(nodeId) {
-			return &c1, nil 
+			return &c1, nil
 		}
 	}
 	return nil, &ContactNotFoundError{nodeId, "Not found"}
@@ -219,6 +222,7 @@ func (k *Kademlia) HandlePing(){
 		select {
 		case newContact := <- k.PingChan:
 			k.UpdateRT(newContact)
+		default:
 		}
 	}
 }
@@ -229,7 +233,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	temp := contact.Host.String() + ":" + portnum
 	fmt.Println("DoStore:", temp)
 	//
-	
+
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
@@ -253,7 +257,7 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 
 func (k *Kademlia) UpdateHT(key ID, value []byte) error {
 	k.H_Table[key] = value
-	return nil	
+	return nil
 }
 
 func (k *Kademlia) HandleStore(){
@@ -274,6 +278,8 @@ func (k *Kademlia) Handler(){
 			k.UpdateRT(newContact)
 		case newFindNodeReq := <- k.FindReqChan:
 			k.FindResChan <- k.GetNode(newFindNodeReq)
+		case newFindValueReq := <- k.FindValueReqChan:
+			k.FindValueResChan <- k.GetValue(newFindValueReq)
 		}
 	}
 }
@@ -281,7 +287,6 @@ func (k *Kademlia) Handler(){
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
-
 	portnum := strconv.Itoa(int(contact.Port))
 	temp := contact.Host.String() + ":" + portnum
 	fmt.Println("DoFind:", temp)
@@ -351,12 +356,57 @@ func (k *Kademlia) GetNode(req FindNodeRequest) *FindNodeResult {
 func (k *Kademlia) DoFindValue(contact *Contact,
 	searchKey ID) (value []byte, contacts []Contact, err error) {
 	// TODO: Implement
+	portnum := strconv.Itoa(int(contact.Port))
+	temp := contact.Host.String() + ":" + portnum
+	fmt.Println("DoFindValue:", temp)
+	//
+	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
+		rpc.DefaultRPCPath + portnum)
+	fmt.Println("1")
+	if err != nil {
+		fmt.Println("error!")
+		log.Fatal("dialing:", err)
+	}
+	fmt.Println("2")
+	req := FindValueRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: searchKey}
+	res := new(FindValueResult)
+	fmt.Println("3")
+  	err = conn.Call("KademliaRPC.FindValue", req, res)
+	fmt.Println("call FindValue")
+  	if err != nil {
+		return nil, nil, &CommandFailed{"Not implemented"}
+  	}else {
+  		fmt.Println("Find Node Completed")
+  		k.PingChan <- contact
+  		return res.Value, res.Nodes, nil
+  	}
 	return nil, nil, &CommandFailed{"Not implemented"}
+}
+
+func (k *Kademlia) GetValue(req FindValueRequest) *FindValueResult{
+	res := new(FindValueResult)
+	res.MsgID = CopyID(req.MsgID)
+	value, err := k.LocalFindValue(req.Key)
+	if err != nil {
+		fmt.Println("can not find value")
+		tempReq := FindNodeRequest{Sender: req.Sender, MsgID: req.MsgID, NodeID: req.Key}
+		FindNodeResult := k.GetNode(tempReq)
+		res.Nodes = FindNodeResult.Nodes
+	} else {
+		fmt.Println("find value!!")
+		res.Value = value
+	}
+	return res
 }
 
 func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 	// TODO: Implement
-	return []byte(""), &CommandFailed{"Not implemented"}
+	for key, value := range k.H_Table{
+		if key.Equals(searchKey) {
+			return value, nil
+		}
+	}
+	return nil, &CommandFailed{"Not implemented"}
 }
 
 // For project 2!

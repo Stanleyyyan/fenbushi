@@ -297,6 +297,7 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		} else if value != nil {
 			response = fmt.Sprintf("OK: Found %s", value)
 		} else {
+			// fmt.Println("find value failed, contact is: ", contacts[0].NodeID.AsString())
 			response = fmt.Sprintf("OK: Got %d contacts", len(contacts))
 		}
 

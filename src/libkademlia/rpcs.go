@@ -39,7 +39,7 @@ func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	pong.MsgID = CopyID(ping.MsgID)
 	// Specify the sender
 	pong.Sender = k.kademlia.SelfContact
-	//chan 
+	//chan
 	c := ping.Sender
 	k.kademlia.PingChan <- (&c)
 	fmt.Println("Pong")
@@ -102,17 +102,16 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	fmt.Println("num of Bucket is :" ,bucketIdx)
 	fmt.Println(len(k.kademlia.K_buckets.buckets))
 	k.kademlia.FindReqChan <- req
-	boo := true
-	for boo {
+	flag := true
+	for flag {
 		select {
-		case ret := <- k.kademlia.FindResChan: 
-				fmt.Println("ret MsgID is ", ret.MsgID.AsString())
-				if ret.MsgID.Equals(res.MsgID){
-					res.Nodes = ret.Nodes
-					boo = false
-				}else {
-					k.kademlia.FindResChan <- ret
-				}
+		case ret := <- k.kademlia.FindResChan:
+			if ret.MsgID.Equals(res.MsgID){
+				res.Nodes = ret.Nodes
+				flag = false
+			}else {
+				k.kademlia.FindResChan <- ret
+			}
 		}
 	}
 
@@ -120,8 +119,6 @@ func (k *KademliaRPC) FindNode(req FindNodeRequest, res *FindNodeResult) error {
 	k.kademlia.PingChan <- (&c)
 	fmt.Println("FindNode Done")
 	return nil
-
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -143,8 +140,34 @@ type FindValueResult struct {
 }
 
 func (k *KademliaRPC) FindValue(req FindValueRequest, res *FindValueResult) error {
-	// TODO: Implement.
+	// TODO: Implement
+	fmt.Println("Enter FINDVALUE")
+	k.kademlia.FindValueReqChan <- req
+	fmt.Println("pass req to chan")
+	res.MsgID = CopyID(req.MsgID)
+	// fmt.Println("ret MsgID is ", ret.MsgID.AsString())
+	flag := true
+	for flag {
+		fmt.Println("wait for res")
+		select {
+		case ret := <- k.kademlia.FindValueResChan:
+			fmt.Println("ret MsgID is ", ret.MsgID.AsString())
+			if ret.MsgID.Equals(res.MsgID){
+				res.Nodes = ret.Nodes
+				res.Value = ret.Value
+				flag = false
+			}else {
+				k.kademlia.FindValueResChan <- ret
+			}
+		}
+	}
+
+	fmt.Println("K is ", len(res.Nodes))
+	c := req.Sender
+	k.kademlia.PingChan <- (&c)
+	fmt.Println("FindNode Done")
 	return nil
+
 }
 
 // For Project 3
