@@ -46,8 +46,8 @@ func main() {
 	log.Println("Group: " + netIds + "\n")
 
 	kadem := libkademlia.NewKademlia(listenStr)
-	go kadem.HandlePing()
-	go kadem.HandleStore()
+	go kadem.Handler()
+	// go kadem.HandleStore()
 
 	// Confirm our server is up with a PING request and then exit.
 	// Your code should loop forever, reading instructions from stdin and
@@ -266,9 +266,6 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		if err != nil {
 			response = fmt.Sprintf("ERR: %s", err)
 		} else {
-			for _,c := range contacts {
-				fmt.Println("contacts: ", c.NodeID.AsString())
-			}
 			response = fmt.Sprintf("Ok: Got %d contacts", len(contacts))
 		}
 
@@ -300,6 +297,7 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		} else if value != nil {
 			response = fmt.Sprintf("OK: Found %s", value)
 		} else {
+			// fmt.Println("find value failed, contact is: ", contacts[0].NodeID.AsString())
 			response = fmt.Sprintf("OK: Got %d contacts", len(contacts))
 		}
 
