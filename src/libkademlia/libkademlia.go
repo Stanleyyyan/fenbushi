@@ -349,16 +349,16 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 		return nil, &CommandFailed{"Not implemented"}
   	}else {
   		k.PingChan <- updateMessage
-		flag := true
-		for flag {
-			select {
-			case ack := <- k.AckChan:
-				if ack.MsgID.Equals(req.MsgID){
-					flag = false
-				}else {
-					k.AckChan <- ack
+			flag := true
+			for flag {
+				select {
+				case ack := <- k.AckChan:
+					if ack.MsgID.Equals(req.MsgID){
+						flag = false
+					}else {
+						k.AckChan <- ack
+					}
 				}
-			}
 		}
 		fmt.Println("Find Node Completed")
   		return res.Nodes, nil
