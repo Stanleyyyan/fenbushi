@@ -90,7 +90,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 		}
 	}
 	k.SelfContact = Contact{k.NodeID, host, uint16(port_int)}
-	k.DoPing(host, uint16(port_int))
+	// k.DoPing(host, uint16(port_int))
 	return k
 }
 
@@ -110,7 +110,9 @@ func (e *ContactNotFoundError) Error() string {
 func (k *Kademlia) FindContact(nodeId ID) (*Contact, error) {
 	// TODO: Search through contacts, find specified ID
 	// Find contact with provided ID
-
+	if k.SelfContact.NodeID.Equals(nodeId) {
+		return &k.SelfContact, nil
+	}
 	dis := nodeId.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	fmt.Println("num of Bucket is :" ,numOfBucket)
@@ -179,7 +181,10 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 	fmt.Println("")
 	fmt.Println("NodeID: ", c.NewContact.NodeID)
 	ack := AckMessage{MsgID: c.MsgID}
-
+  if c.NewContact.NodeID.Equals(k.NodeID) {
+		k.AckChan <- ack
+		return nil
+	}
 	dis := c.NewContact.NodeID.Xor(k.NodeID)
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false

@@ -139,8 +139,8 @@ func TestFindNode(t *testing.T) {
 	}
 	// TODO: Check that the correct contacts were stored
 	//       (and no other contacts)
-	//			Self Contact included
-	if  len(contacts) != 11 {
+		//			Self Contact included
+	if  len(contacts) != 10 {
 		t.Error("Contacts don't match ")
 	}
 	Nodes := make(map[ID]int)
@@ -212,11 +212,14 @@ func TestFindValue(t *testing.T) {
 	if contacts == nil || len(contacts) < 10 {
 		t.Error("Searching for a wrong ID did not return contacts")
 	}
+	// for _, c := range contacts {
+	// 	t.Error(c)
+	// }
 
 	// TODO: Check that the correct contacts were stored
 	//       (and no other contacts)
 	//			Self Contact included
-	if  len(contacts) != 11 {
+	if  len(contacts) != 10 {
 		t.Error("Contacts don't match ")
 	}
 	Nodes := make(map[ID]int)
