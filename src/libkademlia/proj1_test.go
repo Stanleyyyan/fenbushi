@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
 )
 
 func StringToIpPort(laddr string) (ip net.IP, port uint16, err error) {
@@ -42,8 +43,8 @@ func TestPing(t *testing.T) {
 			"1 in its buckets before ping instance 1")
 	}
 	instance1.DoPing(host2, port2)
-  	duration := time.Duration(1)*time.Second
-  	time.Sleep(duration)
+ //  	duration := time.Duration(1)*time.Second
+ //  	time.Sleep(duration)
 	contact2, err = instance1.FindContact(instance2.NodeID)
 	if err != nil {
 		t.Error("Instance 2's contact not found in Instance 1's contact list")
@@ -108,6 +109,7 @@ func TestFindNode(t *testing.T) {
 	      \
 	         E
 	*/
+
 	instance1 := NewKademlia("localhost:7894")
 	instance2 := NewKademlia("localhost:7895")
 	host2, port2, _ := StringToIpPort("localhost:7895")
@@ -137,7 +139,27 @@ func TestFindNode(t *testing.T) {
 	}
 	// TODO: Check that the correct contacts were stored
 	//       (and no other contacts)
+	//			Self Contact included
+	if  len(contacts) != 11 {
+		t.Error("Contacts don't match ")
+	}
+	Nodes := make(map[ID]int)
+	for _, c := range tree_node {
+		Nodes[c.NodeID]++
+	}
+	for _, c1 := range contacts {
+		for  m := range Nodes {
+			if c1.NodeID == m {
+				Nodes[m]--
+			}
+		}
+	}
 
+	for m := range Nodes {
+		if Nodes[m] != 0 {
+			t.Error("Contacts don't match ")
+		}
+	}
 	return
 }
 
@@ -193,4 +215,25 @@ func TestFindValue(t *testing.T) {
 
 	// TODO: Check that the correct contacts were stored
 	//       (and no other contacts)
+	//			Self Contact included
+	if  len(contacts) != 11 {
+		t.Error("Contacts don't match ")
+	}
+	Nodes := make(map[ID]int)
+	for _, c := range tree_node {
+		Nodes[c.NodeID]++
+	}
+	for _, c1 := range contacts {
+		for  m := range Nodes {
+			if c1.NodeID == m {
+				Nodes[m]--
+			}
+		}
+	}
+
+	for m := range Nodes {
+		if Nodes[m] != 0 {
+			t.Error("Contacts don't match ")
+		}
+	}
 }

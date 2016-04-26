@@ -139,7 +139,7 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 		// Following lines need to be expanded
 		var contact *libkademlia.Contact = nil
 		var err error
-
+		// fmt.Println("Enter Ping!")
 		if len(toks) < 2 || len(toks) > 2 {
 			response = "usage: ping [nodeID | host:port]"
 			return
@@ -298,6 +298,7 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 			response = fmt.Sprintf("OK: Found %s", value)
 		} else {
 			// fmt.Println("find value failed, contact is: ", contacts[0].NodeID.AsString())
+			fmt.Println("contact is: ", contacts[0].NodeID.AsString())
 			response = fmt.Sprintf("OK: Got %d contacts", len(contacts))
 		}
 
