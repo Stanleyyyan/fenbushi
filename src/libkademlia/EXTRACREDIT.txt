@@ -1,0 +1,6 @@
+For extra credits:
+
+1. In the function TestFindNode, we add a test to check if the correct contacts were stored and no other contacts. Because a node’s k-buckets contains 10 contacts, so there will 10 contacts returned. So we first check the number of returned contacts and then we use a map to check if the returned contacts can match the contacts that pinged to the node. 
+
+2. In the function TestFindValue, when the Searchkey cannot be found, we test if the correct contacts were stored and no other contacts. Like we did above, we test if the number of contacts is 10 and if correct contacts are returned.
+
