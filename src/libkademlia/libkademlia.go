@@ -33,12 +33,12 @@ type FindNodeMsg struct {
 	Err 		error
 }
 
-type CandiateCon struct {
+type CandidateCon struct {
 	Con 		Contact
 	Distance	ID
 }
 
-
+type ConAry []CandidateCon 
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
 	NodeID      		ID
@@ -54,22 +54,22 @@ type Kademlia struct {
 	HTAckChan			chan AckMessage
 	ConChan				chan FindNodeMsg
 	H_Table				map[ID][]byte
-	CandiateList		[]CandiateCon//20 - len(ShortList)
-	VisitedCon			map[Contact]bool
+	CandiateList		[]CandidateCon//20 - len(ShortList)
+	VisitedCon			map[ID]bool
 	ShortList			[]Contact
 }
 
 //Sort Help Function
-func (s []CandiateCon) Len() int {
+func (s ConAry) Len() int {
     return len(s)
 }
 
-func (s []CandiateCon) Less(i, j int) bool {
+func (s ConAry) Less(i, j int) bool {
 	ret := s[i].Distance.Compare(s[j].Distance)
     return ret == -1
 }
 
-func (s []CandiateCon) Swap(i, j int) {
+func (s ConAry) Swap(i, j int) {
     s[i], s[j] = s[j], s[i]
 }
 
@@ -88,9 +88,9 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.HTAckChan			= make(chan AckMessage)
 	k.ConChan			= make(chan FindNodeMsg)
 	k.H_Table 			= make(map 	[ID][]byte)
-	k.ShortList			= []Contact
-	k.CandiateList		= []CandiateCon
-	k.VisitedCon		= make(map 	[Contact]bool)
+	k.ShortList			= []Contact{}
+	k.CandiateList		= []CandidateCon{}
+	k.VisitedCon		= make(map 	[ID]bool)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
 
@@ -521,32 +521,31 @@ func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 
 // For project 2!
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
-	k.ShortList = []Contact
-	k.CandiateList = []CandiateCon
-	k.VisitedCon = map[Contact]bool{}
+	k.ShortList = []Contact{}
+	k.CandiateList = []CandidateCon{}
+	k.VisitedCon = map[ID]bool{}
 	dis := k.NodeID.Xor(id)
 	bucketIdx := 159 - dis.PrefixLen()
-	actNum := 0
 	fmt.Println("distance is ", bucketIdx)
-	for i := 0; len(k.CandiateList) < 20 && i < len(k.K_buckets.bucket[bucketIdx]); i++ {
-		var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
-						Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
-		k.CandiateList.append(element)
+	for i := 0; len(k.CandiateList) < 20 && i < len(k.K_buckets.buckets[bucketIdx]); i++ {
+		var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+						Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
+		k.CandiateList = append(k.CandiateList, element)
 	}
 
 	for i := bucketIdx - 1; len(k.CandiateList) < 20 && i >= 0; i-- {
-		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.bucket[i]); j++ {
-			var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
-							Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
-			k.CandiateList.append(element)
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
+			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+							Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
+			k.CandiateList = append(k.CandiateList, element)
 		}
 	}
 
 	for i := bucketIdx + 1; len(k.CandiateList) < 20 && i < 160; i++ {
-		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.bucket[i]); j++ {
-			var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
-							Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
-			k.CandiateList.append(element)
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
+			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+							Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
+			k.CandiateList = append(k.CandiateList, element)
 		}
 	}
 
@@ -560,34 +559,33 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		terminator := false
 		restCon := false
 		for _, i := range cycle {
-			s = s & i 
+			s = s && i 
 		}
 		if s {
-			conList := []Contact
+			conList := []Contact{}
 			cycle = map[ID]bool{}
 			for i := 0; i < 3 && i < len(k.CandiateList); i++ {
 				conList[i] = k.CandiateList[i].Con
-				k.VisitedCon[conList[i]] = true
-				cycle[conList[i]] = false
+				k.VisitedCon[conList[i].NodeID] = true
+				cycle[conList[i].NodeID] = false
 			}
-			K.CandiateList = k.CandiateList[len(conList):]
+			k.CandiateList = k.CandiateList[len(conList):]
 			for i := 0; i < len(conList); i++ {
-				go FindNodeHandler(conList[i], id)
+				go k.FindNodeHandler(&conList[i], id)
 			}
 		}
-		case ret := <- k.ConChan : {
-			_, ok := cycle[ret.QueryNode.NodeID]
-			if ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList) - 1].Con.NodeID) {
-				restCon = true
-			}
-			if !ok {
-				continue
-			} else {
-				terminator = !RcvNodeHandler(ret, id, terminator)
-				cycle[ret.QueryNode.NodeID] = true
-			}
+		ret := <- k.ConChan 
+		_, ok := cycle[ret.QueryNode.NodeID]
+		if ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList) - 1].Con.NodeID) {
+			restCon = true
 		}
-		
+		if !ok {
+			continue
+		} else {
+			terminator = !k.RcvNodeHandler(ret, id, terminator)
+			cycle[ret.QueryNode.NodeID] = true
+		}
+	
 		if restCon {
 			break
 		}
@@ -598,7 +596,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 
 func (k *Kademlia) FindNodeHandler(contact *Contact, searchKey ID) {
 	contacts, err := k.DoFindNode(contact, searchKey)
-	k.ConChan <- FindNodeMsg{QueryNode: contact, Contacts: contacts, Err: err}// pointer? argument? 
+	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument? 
 }
 
 func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res bool) {
@@ -608,7 +606,7 @@ func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res 
 			return false
 		}
 		for _, c := range ret.Contacts {
-			if k.VisitedCon[c] == true {
+			if k.VisitedCon[c.NodeID] == true {
 				continue 
 			}
 			contained := false
@@ -620,10 +618,10 @@ func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res 
 			}
 			if contained == false {
 				k.CandiateList = append(k.CandiateList,
-									CandiateCon{Con:c, Distance: id.Xor(c.NodeID)})
+									CandidateCon{Con:c, Distance: id.Xor(c.NodeID)})
 			}
 		}
-		sort.Sort(k.CandiateList)
+		sort.Sort(ConAry(k.CandiateList))
 		k.CandiateList = k.CandiateList[:20 - len(k.ShortList)]
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
