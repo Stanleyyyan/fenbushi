@@ -38,7 +38,7 @@ type CandidateCon struct {
 	Distance	ID
 }
 
-type ConAry []CandidateCon 
+type ConAry []CandidateCon
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
 	NodeID      		ID
@@ -528,14 +528,14 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	bucketIdx := 159 - dis.PrefixLen()
 	fmt.Println("distance is ", bucketIdx)
 	for i := 0; len(k.CandiateList) < 20 && i < len(k.K_buckets.buckets[bucketIdx]); i++ {
-		var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+		var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i],
 						Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
 		k.CandiateList = append(k.CandiateList, element)
 	}
 
 	for i := bucketIdx - 1; len(k.CandiateList) < 20 && i >= 0; i-- {
 		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
-			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i],
 							Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
 			k.CandiateList = append(k.CandiateList, element)
 		}
@@ -543,7 +543,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 
 	for i := bucketIdx + 1; len(k.CandiateList) < 20 && i < 160; i++ {
 		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
-			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], 
+			var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i],
 							Distance: id.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
 			k.CandiateList = append(k.CandiateList, element)
 		}
@@ -559,7 +559,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		terminator := false
 		restCon := false
 		for _, i := range cycle {
-			s = s && i 
+			s = s && i
 		}
 		if s {
 			conList := []Contact{}
@@ -574,7 +574,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 				go k.FindNodeHandler(&conList[i], id)
 			}
 		}
-		ret := <- k.ConChan 
+		ret := <- k.ConChan
 		_, ok := cycle[ret.QueryNode.NodeID]
 		if ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList) - 1].Con.NodeID) {
 			restCon = true
@@ -585,29 +585,29 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			terminator = !k.RcvNodeHandler(ret, id, terminator)
 			cycle[ret.QueryNode.NodeID] = true
 		}
-	
+
 		if restCon {
 			break
 		}
 	}
 
-	return k.ShortList, nil 
+	return k.ShortList, nil
 }
 
 func (k *Kademlia) FindNodeHandler(contact *Contact, searchKey ID) {
 	contacts, err := k.DoFindNode(contact, searchKey)
-	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument? 
+	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument?
 }
 
 func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res bool) {
 	if ret.Err == nil {
 		k.ShortList = append(k.ShortList, ret.QueryNode)
-		if terminator == true { 
+		if terminator == true {
 			return false
 		}
 		for _, c := range ret.Contacts {
 			if k.VisitedCon[c.NodeID] == true {
-				continue 
+				continue
 			}
 			contained := false
 			for i := 0; i < len(k.CandiateList); i++ {
