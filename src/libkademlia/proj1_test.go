@@ -253,7 +253,7 @@ func TestIterativeFindNode(t *testing.T) {
 	      \
 	         E
 	*/
-	kNum := 20
+	kNum := 40
 	targetIdx := kNum - 10
 	instance2 := NewKademlia("localhost:7305")
 	host2, port2, _ := StringToIpPort("localhost:7305")
@@ -305,6 +305,11 @@ func TestIterativeFindNode(t *testing.T) {
 //	t.Log("Closet Node:" + c.NodeID.AsString())
 
 //	t.Log(strconv.Itoa(cHeap.Len()))
+	if len(res) != 20 {
+		t.Log("K list has no 20 ")
+		t.Error("error")
+
+	}
 	if !find {
 		t.Log("2:" + instance2.NodeID.AsString())
 		t.Error("Find wrong id")

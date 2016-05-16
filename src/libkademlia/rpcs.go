@@ -42,6 +42,7 @@ type AckMessage struct {
 	MsgID		ID
 }
 
+
 func (k *KademliaRPC) Ping(ping PingMessage, pong *PongMessage) error {
 	// TODO: Finish implementation
 	fmt.Println("Ping !!")
@@ -85,6 +86,11 @@ type StoreResult struct {
 	MsgID ID
 	Err   error
 }
+
+// type StoreMessage struct {
+// 	Err			error
+// 	NodeID 		ID
+// }
 
 func (k *KademliaRPC) Store(req StoreRequest, res *StoreResult) error {
 	// TODO: Implement.
