@@ -11,6 +11,7 @@ import (
 	"net/rpc"
 	"strconv"
 	"errors"
+	"sort"
 	// "os"
 )
 
@@ -26,6 +27,18 @@ type Pair struct {
 	MsgID	ID
 }
 
+type FindNodeMsg struct {
+	QueryNode	Contact
+	Contacts 	[]Contact
+	Err 		error
+}
+
+type CandiateCon struct {
+	Con 		Contact
+	Distance	ID
+}
+
+
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
 	NodeID      		ID
@@ -39,8 +52,27 @@ type Kademlia struct {
 	FindValueResChan 	chan *FindValueResult
 	AckChan				chan AckMessage
 	HTAckChan			chan AckMessage
+	ConChan				chan FindNodeMsg
 	H_Table				map[ID][]byte
+	CandiateList		[]CandiateCon//20 - len(ShortList)
+	VisitedCon			map[Contact]bool
+	ShortList			[]Contact
 }
+
+//Sort Help Function
+func (s []CandiateCon) Len() int {
+    return len(s)
+}
+
+func (s []CandiateCon) Less(i, j int) bool {
+	ret := s[i].Distance.Compare(s[j].Distance)
+    return ret == -1
+}
+
+func (s []CandiateCon) Swap(i, j int) {
+    s[i], s[j] = s[j], s[i]
+}
+
 
 func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k := new(Kademlia)
@@ -54,7 +86,11 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.FindValueResChan	= make(chan *FindValueResult)
 	k.AckChan			= make(chan AckMessage)
 	k.HTAckChan			= make(chan AckMessage)
-	k.H_Table 			= make(map [ID][]byte)
+	k.ConChan			= make(chan FindNodeMsg)
+	k.H_Table 			= make(map 	[ID][]byte)
+	k.ShortList			= []Contact
+	k.CandiateList		= []CandiateCon
+	k.VisitedCon		= make(map 	[Contact]bool)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
 
@@ -181,7 +217,7 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 	fmt.Println("")
 	fmt.Println("NodeID: ", c.NewContact.NodeID)
 	ack := AckMessage{MsgID: c.MsgID}
-  if c.NewContact.NodeID.Equals(k.NodeID) {
+  	if c.NewContact.NodeID.Equals(k.NodeID) {
 		k.AckChan <- ack
 		return nil
 	}
@@ -454,7 +490,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 		fmt.Println("Find Node Completed")
   		return res.Value, res.Nodes, nil
   	}
-	return nil, nil, &CommandFailed{"Not implemented"}
+	return nil, nil, &CommandFailed{"Not Found"}
 }
 
 func (k *Kademlia) GetValue(req FindValueRequest) *FindValueResult{
@@ -480,13 +516,120 @@ func (k *Kademlia) LocalFindValue(searchKey ID) ([]byte, error) {
 			return value, nil
 		}
 	}
-	return nil, &CommandFailed{"Not implemented"}
+	return nil, &CommandFailed{"Not Find"}
 }
 
 // For project 2!
 func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
-	return nil, &CommandFailed{"Not implemented"}
+	k.ShortList = []Contact
+	k.CandiateList = []CandiateCon
+	k.VisitedCon = map[Contact]bool{}
+	dis := k.NodeID.Xor(id)
+	bucketIdx := 159 - dis.PrefixLen()
+	actNum := 0
+	fmt.Println("distance is ", bucketIdx)
+	for i := 0; len(k.CandiateList) < 20 && i < len(k.K_buckets.bucket[bucketIdx]); i++ {
+		var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
+						Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
+		k.CandiateList.append(element)
+	}
+
+	for i := bucketIdx - 1; len(k.CandiateList) < 20 && i >= 0; i-- {
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.bucket[i]); j++ {
+			var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
+							Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
+			k.CandiateList.append(element)
+		}
+	}
+
+	for i := bucketIdx + 1; len(k.CandiateList) < 20 && i < 160; i++ {
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.bucket[i]); j++ {
+			var element = CandiateCon{Con: k.K_buckets.bucket[bucketIdx][i], 
+							Distance: id.Xor(k.K_buckets.bucket[bucketIdx][i].NodeID)}
+			k.CandiateList.append(element)
+		}
+	}
+
+	cycle := map[ID]bool {
+		NewRandomID(): true,
+		NewRandomID(): true,
+		NewRandomID(): true,
+	}
+	for len(k.ShortList) < 20 {
+		s := true
+		terminator := false
+		restCon := false
+		for _, i := range cycle {
+			s = s & i 
+		}
+		if s {
+			conList := []Contact
+			cycle = map[ID]bool{}
+			for i := 0; i < 3 && i < len(k.CandiateList); i++ {
+				conList[i] = k.CandiateList[i].Con
+				k.VisitedCon[conList[i]] = true
+				cycle[conList[i]] = false
+			}
+			K.CandiateList = k.CandiateList[len(conList):]
+			for i := 0; i < len(conList); i++ {
+				go FindNodeHandler(conList[i], id)
+			}
+		}
+		case ret := <- k.ConChan : {
+			_, ok := cycle[ret.QueryNode.NodeID]
+			if ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList) - 1].Con.NodeID) {
+				restCon = true
+			}
+			if !ok {
+				continue
+			} else {
+				terminator = !RcvNodeHandler(ret, id, terminator)
+				cycle[ret.QueryNode.NodeID] = true
+			}
+		}
+		
+		if restCon {
+			break
+		}
+	}
+
+	return k.ShortList, nil 
 }
+
+func (k *Kademlia) FindNodeHandler(contact *Contact, searchKey ID) {
+	contacts, err := k.DoFindNode(contact, searchKey)
+	k.ConChan <- FindNodeMsg{QueryNode: contact, Contacts: contacts, Err: err}// pointer? argument? 
+}
+
+func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res bool) {
+	if ret.Err == nil {
+		k.ShortList = append(k.ShortList, ret.QueryNode)
+		if terminator == true { 
+			return false
+		}
+		for _, c := range ret.Contacts {
+			if k.VisitedCon[c] == true {
+				continue 
+			}
+			contained := false
+			for i := 0; i < len(k.CandiateList); i++ {
+				if k.CandiateList[i].Con.NodeID.Equals(c.NodeID) {
+					contained = true;
+					break;
+				}
+			}
+			if contained == false {
+				k.CandiateList = append(k.CandiateList,
+									CandiateCon{Con:c, Distance: id.Xor(c.NodeID)})
+			}
+		}
+		sort.Sort(k.CandiateList)
+		k.CandiateList = k.CandiateList[:20 - len(k.ShortList)]
+		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
+	}
+	return !(false || terminator)
+}
+
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	return nil, &CommandFailed{"Not implemented"}
 }
