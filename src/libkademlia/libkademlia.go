@@ -585,12 +585,11 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		}
 		ret := <- k.ConChan 
 		_, ok := cycle[ret.QueryNode.NodeID]
-		if !ok {
-			continue
-		} else {
-			terminator = !k.RcvNodeHandler(ret, id, terminator)
+		if ok {
 			cycle[ret.QueryNode.NodeID] = true
-		}
+		} 
+		terminator = !k.RcvNodeHandler(ret, id, terminator, ok)
+		cycle[ret.QueryNode.NodeID] = true
 	
 		if len(k.CandiateList) == 0 || ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList)-1].Con.NodeID) {
 			restCon = true
@@ -609,7 +608,7 @@ func (k *Kademlia) FindNodeHandler(contact *Contact, searchKey ID) {
 	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument? 
 }
 
-func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res bool) {
+func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool, ok bool) (res bool) {
 	if ret.Err == nil {
 		k.ShortList = append(k.ShortList, ret.QueryNode)
 		if terminator == true { 
@@ -631,7 +630,14 @@ func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res 
 			}
 		}
 		sort.Sort(ConAry(k.CandiateList))
-		k.CandiateList = k.CandiateList[:20 - len(k.ShortList)]
+		idx := len(k.CandiateList)
+		if idx > 20 - len(k.ShortList){
+			idx = 20 - len(k.ShortList)
+		}
+		k.CandiateList = k.CandiateList[:idx]
+		if !ok {
+			return !(false || terminator)
+		}
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
 	return !(false || terminator)
