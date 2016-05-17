@@ -4,6 +4,7 @@ package libkademlia
 // as a receiver for the RPC methods, which is required by that package.
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -272,8 +273,8 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], (c.NewContact))
 			k.AckChan <- ack
 			return errors.New("k buckets not full, add to tail")
-		} else {			
-			fmt.Println("WTF!!!")	
+		} else {
+			fmt.Println("WTF!!!")
 			_, err :=
 				k.PingAliveTest(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
@@ -586,7 +587,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		timeOut := curTime.After(start)
 		STOP := curTime.After(timer)
 		if timeOut || s && len(k.CandiateList) == 0  {
-			break	
+			break
 		}
 		if STOP {
 			break
@@ -714,6 +715,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	start = start.Add(300000000)
 	terminator := false
 	ret := new(FindValueMsg)
+	foundValue := []byte("")
 	for len(k.ShortList) < 20 {
 		s := true
 		// restCon := false
@@ -742,19 +744,15 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 		}
 		ret = <- k.ValChan
 		if ret.Value != nil {
+			foundValue = ret.Value
 			terminator = true
 		}
 		_, ok := cycle[ret.QueryNode.NodeID]
 		if !ok {
 			continue
 		} else {
-			// fmt.Println("============================ok==========================",ok)
 			terminator =  !k.RcvValueHandler(*ret, key, terminator, /*ok*/) || terminator
 			cycle[ret.QueryNode.NodeID] = true
-		}
-
-		if terminator && (len(k.CandiateList) == 0 || ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList)-1].Con.NodeID)) {
-			break
 		}
 		//
 		// if restCon {
@@ -783,12 +781,14 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	}
 
 	// not find value
-	if ret.Value == nil {
+	if bytes.Equal(foundValue, []byte("")){
+		foundValue = nil
+	}
+	if foundValue == nil {
 		return nil, &CommandFailed{k.ShortList[closest].NodeID.AsString()}
 	} else {
-		// fmt.Println("k ShortList Len is ------ :", len(k.ShortList))
-		k.DoStore(&k.ShortList[closest], key, ret.Value)
-		return ret.Value, nil
+		k.DoStore(&k.ShortList[closest], key, foundValue)
+		return foundValue, nil
 	}
 
 }
@@ -799,7 +799,6 @@ func (k *Kademlia) FindValueHandler(contact *Contact, searchKey ID) {
 }
 
 func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*ok bool*/) (res bool) {
-	// fmt.Println("============================receiver==========================")
 	if ret.Err == nil {
 		k.ShortList = append(k.ShortList, ret.QueryNode)
 		if terminator == true {
