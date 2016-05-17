@@ -841,6 +841,7 @@ func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*o
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
 	return !(false || terminator)
+	return !(false || terminator)
 }
 
 // For project 3!

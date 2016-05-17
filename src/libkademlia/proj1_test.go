@@ -1,7 +1,7 @@
 package libkademlia
 
 import (
-	"bytes"
+	//"bytes"
 	"net"
 	"strconv"
 	"testing"
@@ -241,10 +241,18 @@ func StringToIpPort(laddr string) (ip net.IP, port uint16, err error) {
 // 	}
 // }
 
-/*
+
 
 func TestIterativeFindNode(t *testing.T) {
-
+	// tree structure;
+	// A->B->tree
+	/*
+	         C
+	      /
+	  A-B -- D
+	      \
+	         E
+	*/
 	kNum := 40
 	targetIdx := kNum - 10
 	instance2 := NewKademlia("localhost:7305")
@@ -307,7 +315,8 @@ func TestIterativeFindNode(t *testing.T) {
 	}
 	return
 }
-*/
+
+/*
 func TestIterativeFindValue(t *testing.T) {
 	kNum := 30
 	targetIdx := kNum - 10
@@ -346,3 +355,4 @@ func TestIterativeFindValue(t *testing.T) {
 	}
 	return
 }
+*/
