@@ -671,7 +671,7 @@ func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	return res, nil
 }
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
-
+	
 	return nil, &CommandFailed{"Not implemented"}
 }
 
