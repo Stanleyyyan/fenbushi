@@ -28,6 +28,13 @@ type Pair struct {
 	MsgID	ID
 }
 
+type FindValueMsg struct {
+	Value 		[]byte
+	QueryNode	Contact
+	Contacts 	[]Contact
+	Err 		error
+}
+
 type FindNodeMsg struct {
 	QueryNode	Contact
 	Contacts 	[]Contact
@@ -54,6 +61,7 @@ type Kademlia struct {
 	AckChan				chan AckMessage
 	HTAckChan			chan AckMessage
 	ConChan				chan FindNodeMsg
+	ValChan 			chan *FindValueMsg
 	H_Table				map[ID][]byte
 	CandiateList		[]CandidateCon//20 - len(ShortList)
 	VisitedCon			map[ID]bool
@@ -89,6 +97,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.AckChan			= make(chan AckMessage)
 	k.HTAckChan			= make(chan AckMessage)
 	k.ConChan			= make(chan FindNodeMsg)
+	k.ValChan			= make(chan *FindValueMsg)
 	k.H_Table 			= make(map 	[ID][]byte)
 	k.ShortList			= []Contact{}
 	k.CandiateList		= []CandidateCon{}
@@ -658,6 +667,7 @@ func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool, /*ok 
 	return !(false || terminator)
 }
 
+
 func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	contacts, _:= k.DoIterativeFindNode(key)
 	res := []Contact{}
@@ -670,8 +680,165 @@ func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	return res, nil
 }
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
+	k.ShortList = []Contact{}
+	k.CandiateList = []CandidateCon{}
+	k.VisitedCon = map[ID]bool{}
+	dis := k.NodeID.Xor(key)
+	bucketIdx := 159 - dis.PrefixLen()
+	fmt.Println("distance is ", bucketIdx)
+	for i := 0; len(k.CandiateList) < 20 && i < len(k.K_buckets.buckets[bucketIdx]); i++ {
+		var element = CandidateCon{Con: k.K_buckets.buckets[bucketIdx][i], Distance: key.Xor(k.K_buckets.buckets[bucketIdx][i].NodeID)}
+		k.CandiateList = append(k.CandiateList, element)
+	}
 
-	return nil, &CommandFailed{"Not implemented"}
+	for i := bucketIdx - 1; len(k.CandiateList) < 20 && i >= 0; i-- {
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
+			var element = CandidateCon{Con: k.K_buckets.buckets[i][j], Distance: key.Xor(k.K_buckets.buckets[i][j].NodeID)}
+			k.CandiateList = append(k.CandiateList, element)
+		}
+	}
+
+	for i := bucketIdx + 1; len(k.CandiateList) < 20 && i < 160; i++ {
+		for j := 0; len(k.CandiateList) < 20 && j < len(k.K_buckets.buckets[i]); j++ {
+			var element = CandidateCon{Con: k.K_buckets.buckets[i][j], Distance: key.Xor(k.K_buckets.buckets[i][j].NodeID)}
+			k.CandiateList = append(k.CandiateList, element)
+		}
+	}
+
+	cycle := map[ID]bool {
+		NewRandomID(): true,
+		NewRandomID(): true,
+		NewRandomID(): true,
+	}
+	start := time.Now()
+	start = start.Add(300000000)
+	terminator := false
+	ret := new(FindValueMsg)
+	for len(k.ShortList) < 20 {
+		s := true
+		// restCon := false
+		for _, i := range cycle {
+			s = s && i
+		}
+		curTime := time.Now()
+		timeOut := curTime.After(start)
+		if terminator && (s || timeOut) {
+			break
+		}
+		if s || timeOut{
+			conList := []Contact{}
+			cycle = map[ID]bool{}
+			for i := 0; i < 3 && i < len(k.CandiateList); i++ {
+				conList = append(conList, k.CandiateList[i].Con)
+				k.VisitedCon[conList[i].NodeID] = true
+				cycle[conList[i].NodeID] = false
+			}
+			k.CandiateList = k.CandiateList[len(conList):]
+			for i := 0; i < len(conList); i++ {
+				go k.FindValueHandler(&conList[i], key)
+			}
+			start = time.Now()
+			start = start.Add(300000000)
+		}
+		ret = <- k.ValChan
+		if ret.Value != nil {
+			terminator = true
+		}
+		_, ok := cycle[ret.QueryNode.NodeID]
+		if !ok {
+			continue
+		} else {
+			// fmt.Println("============================ok==========================",ok)
+			terminator =  !k.RcvValueHandler(*ret, key, terminator, /*ok*/) || terminator
+			cycle[ret.QueryNode.NodeID] = true
+		}
+
+		if terminator && (len(k.CandiateList) == 0 || ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList)-1].Con.NodeID)) {
+			break
+		}
+		//
+		// if restCon {
+		// 	break
+		// }
+	}
+
+	// find the closest node in ShortList
+	// if len(k.ShortList) == 0 {
+	// 	return nil, &CommandFailed{"Found No Contacts!"}
+	// }
+	closest := -1
+	closestDis := NewRandomID()
+	for idx, c := range k.ShortList {
+		if k.ShortList[idx].NodeID != key {
+			closest = idx
+			closestDis = c.NodeID.Xor(key)
+		}
+	}
+	for idx, c := range k.ShortList {
+		dis := c.NodeID.Xor(key)
+		if c.NodeID != key && dis.Compare(closestDis) < 0{
+			closest = idx
+			closestDis = dis
+		}
+	}
+
+	// not find value
+	if ret.Value == nil {
+		return nil, &CommandFailed{k.ShortList[closest].NodeID.AsString()}
+	} else {
+		// fmt.Println("k ShortList Len is ------ :", len(k.ShortList))
+		k.DoStore(&k.ShortList[closest], key, ret.Value)
+		return ret.Value, nil
+	}
+
+}
+
+func (k *Kademlia) FindValueHandler(contact *Contact, searchKey ID) {
+	value, contacts, err := k.DoFindValue(contact, searchKey)
+	k.ValChan <- &FindValueMsg{Value: value, QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument?
+}
+
+func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*ok bool*/) (res bool) {
+	// fmt.Println("============================receiver==========================")
+	if ret.Err == nil {
+		k.ShortList = append(k.ShortList, ret.QueryNode)
+		if terminator == true {
+			return false
+		}
+		for _, c := range ret.Contacts {
+			if k.VisitedCon[c.NodeID] == true {
+				continue
+			}
+			contained := false
+			for i := 0; i < len(k.CandiateList); i++ {
+				if k.CandiateList[i].Con.NodeID.Equals(c.NodeID) {
+					contained = true;
+					break;
+				}
+			}
+			if contained == false {
+				k.CandiateList = append(k.CandiateList, CandidateCon{Con:c, Distance: id.Xor(c.NodeID)})
+			}
+		}
+		sort.Sort(ConAry(k.CandiateList))
+		idx := len(k.CandiateList)
+		if idx > 20 - len(k.ShortList){
+			idx = 20 - len(k.ShortList)
+		}
+
+		fmt.Println("k ShortList Len is :", len(k.ShortList))
+		fmt.Println("k CandiateList Len is :", len(k.CandiateList))
+		fmt.Println("idx is :", idx)
+		k.CandiateList = k.CandiateList[:idx]
+		// if !ok {
+		// 	return !(false || terminator)
+		// }
+		if len(k.CandiateList) == 0{
+			return false
+		}
+		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
+	}
+	return !(false || terminator)
 }
 
 // For project 3!
