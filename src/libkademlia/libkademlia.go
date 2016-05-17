@@ -173,12 +173,22 @@ func (e *CommandFailed) Error() string {
 	return fmt.Sprintf("%s", e.msg)
 }
 
+func (k *Kademlia) PingAliveTest(host net.IP, port uint16) (*Contact, error) {
+	portnum := strconv.Itoa(int(port))
+	_, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+		rpc.DefaultRPCPath + portnum)
+	if err != nil {
+		fmt.Println("error!")
+		// log.Fatal("dialing:", err)
+		return nil, err
+	} else {
+		return nil, nil
+	}
+}
+
 func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	// TODO: Implement
 	portnum := strconv.Itoa(int(port))
-	temp := host.String() + ":" + portnum
-	fmt.Println("DoPing:", temp)
-
 	client, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
@@ -188,14 +198,14 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		return nil, err
 	}
 	pim := PingMessage{k.SelfContact, NewRandomID()}
-	fmt.Println("PingMessage ID is: ", pim.MsgID.AsString())
+	fmt.Println("Ping Self port is: ", k.SelfContact.Port)
+	fmt.Println("Ping Target port is: ", port)
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
 
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = pim.MsgID
 	updateMessage.NewContact = pom.Sender
-	fmt.Printf("get response and new updateMessage!")
 	if err != nil {
 		return nil, &CommandFailed{
 			"Unable to ping " + fmt.Sprintf("%s:%v", host.String(), port)}
@@ -212,14 +222,11 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 				}
 			}
 		}
-		fmt.Println("updating Done")
 		return &(pom.Sender), nil
 	}
 }
 
 func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
-	fmt.Println("")
-	fmt.Println("NodeID: ", c.NewContact.NodeID)
 	ack := AckMessage{MsgID: c.MsgID}
   	if c.NewContact.NodeID.Equals(k.NodeID) {
 		k.AckChan <- ack
@@ -229,8 +236,6 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 	numOfBucket := 159 - dis.PrefixLen()
 	containSender := false
 	idx := 0
-	fmt.Println("num of Bucket is :" ,numOfBucket)
-	fmt.Println(len(k.K_buckets.buckets))
 	for index, c1 := range k.K_buckets.buckets[numOfBucket] {
 		if c1.NodeID.Equals(c.NewContact.NodeID) {
 			containSender = true
@@ -239,11 +244,9 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 	}
 	if containSender {
 		if len(k.K_buckets.buckets[numOfBucket]) == 1 {
-			fmt.Printf("kademlia> ")
 			k.AckChan <- ack
 			return nil
 		}
-		fmt.Println("index is :", idx)
 		if idx != 0 {
 			temp := k.K_buckets.buckets[numOfBucket][idx]
 			k.K_buckets.buckets[numOfBucket] =
@@ -253,32 +256,27 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 		}else {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket][idx + 1:], k.K_buckets.buckets[numOfBucket][idx])
 		}
-		fmt.Println("Moved to Tail!")
-		fmt.Printf("kademlia> ")
 		k.AckChan <- ack
 		return errors.New("Move to tail")
 	} else {
 		if len(k.K_buckets.buckets[numOfBucket]) < 20 {
 			k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], (c.NewContact))
-			fmt.Println("k buckets not full, add to tail")
-			fmt.Printf("kademlia> ")
 			k.AckChan <- ack
 			return errors.New("k buckets not full, add to tail")
-		} else {
+		} else {			
+			fmt.Println("WTF!!!")	
 			_, err :=
-				k.DoPing(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
+				k.PingAliveTest(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
 				k.K_buckets.buckets[numOfBucket] =
 					k.K_buckets.buckets[numOfBucket][1:]
 				k.K_buckets.buckets[numOfBucket] = append(k.K_buckets.buckets[numOfBucket], (c.NewContact))
-				fmt.Println("head dead, replace head")
-				fmt.Printf("kademlia> ")
 				k.AckChan <- ack
+				fmt.Println("Head Dead")
 				return errors.New("head dead, replace head")
 			}else{
-				fmt.Println("Discard!")
-				fmt.Printf("kademlia> ")
 				k.AckChan <- ack
+				fmt.Println("Head Live")
 				return errors.New("Discard")
 			}
 		}
@@ -567,15 +565,23 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	}
 	start := time.Now()
 	start = start.Add(300000000)
+	timer := time.Now()
+	timer = timer.Add(3000000000)
+	terminator := false
 	for len(k.ShortList) < 20 {
 		s := true
-		terminator := false
-		restCon := false
 		for _, i := range cycle {
 			s = s && i
 		}
 		curTime := time.Now()
 		timeOut := curTime.After(start)
+		STOP := curTime.After(timer)
+		if timeOut || s && len(k.CandiateList) == 0  {
+			break	
+		}
+		if STOP {
+			break
+		}
 		if s || timeOut{
 			conList := []Contact{}
 			cycle = map[ID]bool{}
@@ -600,13 +606,6 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			cycle[ret.QueryNode.NodeID] = true
 		}
 
-		if len(k.CandiateList) == 0 || ret.QueryNode.NodeID.Equals(k.CandiateList[len(k.CandiateList)-1].Con.NodeID) {
-			restCon = true
-		}
-
-		if restCon {
-			break
-		}
 	}
 
 	return k.ShortList, nil

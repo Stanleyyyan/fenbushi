@@ -259,16 +259,18 @@ func TestIterativeFindNode(t *testing.T) {
 	host2, port2, _ := StringToIpPort("localhost:7305")
 	//	instance2.DoPing(host2, port2)
 	tree_node := make([]*Kademlia, kNum)
-	fmt.Print("Marker111")
+	// t.Error(1)
 	//t.Log("Before loop")
 	for i := 0; i < kNum; i++ {
+		fmt.Println("First Ping Loop")
 		address := "localhost:" + strconv.Itoa(7306+i)
 		tree_node[i] = NewKademlia(address)
 		tree_node[i].DoPing(host2, port2)
-		t.Log("ID:" + tree_node[i].SelfContact.NodeID.AsString())
+		// t.Log("ID:" + tree_node[i].SelfContact.NodeID.AsString())
 	}
 	for i := 0; i < kNum; i++ {
 		if i != targetIdx {
+			fmt.Println("Second Ping Loop")
 			tree_node[targetIdx].DoPing(tree_node[i].SelfContact.Host, tree_node[i].SelfContact.Port)
 		}
 	}
@@ -280,9 +282,6 @@ func TestIterativeFindNode(t *testing.T) {
 	//cHeap := PriorityQueue{instance2.SelfContact, []Contact{}, SearchKey}
 	//t.Log("Wait for iterative")
 	res, err := tree_node[2].DoIterativeFindNode(SearchKey)
-
-
-	fmt.Print("Marker")
 
 	if err != nil {
 		t.Error(err.Error())
@@ -308,7 +307,6 @@ func TestIterativeFindNode(t *testing.T) {
 	if len(res) != 20 {
 		t.Log("K list has no 20 ")
 		t.Error("error")
-
 	}
 	if !find {
 		t.Log("2:" + instance2.NodeID.AsString())
