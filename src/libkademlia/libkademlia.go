@@ -786,7 +786,9 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	if ret.Value == nil {
 		return nil, &CommandFailed{k.ShortList[closest].NodeID.AsString()}
 	} else {
-		// fmt.Println("k ShortList Len is ------ :", len(k.ShortList))
+		fmt.Println("k ShortList Len is ------ :", len(k.ShortList))
+		fmt.Println("closest is :", closest)
+		
 		k.DoStore(&k.ShortList[closest], key, ret.Value)
 		return ret.Value, nil
 	}
