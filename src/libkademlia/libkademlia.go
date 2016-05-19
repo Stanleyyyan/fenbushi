@@ -3,6 +3,10 @@ package libkademlia
 // Contains the core kademlia type. In addition to core state, this type serves
 // as a receiver for the RPC methods, which is required by that package.
 
+// Ounan Ma, omg049
+// Chong Yan, cyu422
+// Wenjie Zhang, wzm416
+
 import (
 	"bytes"
 	"fmt"
@@ -361,15 +365,6 @@ func (k *Kademlia) UpdateHT(key ID, value []byte, MsgID ID) AckMessage {
 	ack := AckMessage{MsgID: MsgID}
 	return ack
 }
-//
-// func (k *Kademlia) HandleStore(){
-// 	for {
-// 		select {
-// 		case newPair := <- k.HashChan:
-// 			k.UpdateHT(newPair.Key, newPair.Value)
-// 		}
-// 	}
-// }
 
 func (k *Kademlia) Handler(){
 	for {
@@ -385,7 +380,6 @@ func (k *Kademlia) Handler(){
 		}
 	}
 }
-
 
 func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error) {
 	// TODO: Implement
@@ -423,6 +417,25 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 				}
 		}
 		fmt.Println("Find Node Completed")
+		for i := 0; i < len(res.Nodes); i++ {
+			fmt.Println(res.Nodes[i].Port)
+			updateMessage := new(UpdateMessage)
+			updateMessage.MsgID = NewRandomID()
+			updateMessage.NewContact = res.Nodes[i]
+			k.PingChan <- updateMessage
+			flag := true
+			for flag {
+				select {
+				case ack := <- k.AckChan:
+					if ack.MsgID.Equals(updateMessage.MsgID){
+						flag = false
+					}else {
+						k.AckChan <- ack
+					}
+				}
+			fmt.Println(res.Nodes[i].Port)
+			}
+		}
   		return res.Nodes, nil
   	}
 }
@@ -509,7 +522,25 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 				}
 			}
 		}
-		fmt.Println("Find Node Completed")
+		for i := 0; i < len(res.Nodes); i++ {
+			fmt.Println(res.Nodes[i].Port)
+			updateMessage := new(UpdateMessage)
+			updateMessage.MsgID = NewRandomID()
+			updateMessage.NewContact = res.Nodes[i]
+			k.PingChan <- updateMessage
+			flag := true
+			for flag {
+				select {
+				case ack := <- k.AckChan:
+					if ack.MsgID.Equals(updateMessage.MsgID){
+						flag = false
+					}else {
+						k.AckChan <- ack
+					}
+				}
+			fmt.Println(res.Nodes[i].Port)
+			}
+		}
   		return res.Value, res.Nodes, nil
   	}
 	return nil, nil, &CommandFailed{"Not Found"}
@@ -568,6 +599,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 		}
 	}
 
+	// start cycles of three parallel DoFindNode()
 	cycle := map[ID]bool {
 		NewRandomID(): true,
 		NewRandomID(): true,
@@ -577,7 +609,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	start = start.Add(300000000)
 	timer := time.Now()
 	timer = timer.Add(3000000000)
-	terminator := false
+	terminator := false		// the flag of ending condition
 	for len(k.ShortList) < 20 {
 		s := true
 		for _, i := range cycle {
@@ -607,6 +639,7 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 			start = time.Now()
 			start = start.Add(300000000)
 		}
+		// receive the results
 		ret := <- k.ConChan
 		_, ok := cycle[ret.QueryNode.NodeID]
 		if !ok {
@@ -621,12 +654,14 @@ func (k *Kademlia) DoIterativeFindNode(id ID) ([]Contact, error) {
 	return k.ShortList, nil
 }
 
+// handle the parallel DoFindNode() and receive results
 func (k *Kademlia) FindNodeHandler(contact *Contact, searchKey ID) {
 	contacts, err := k.DoFindNode(contact, searchKey)
-	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument?
+	k.ConChan <- FindNodeMsg{QueryNode: *contact, Contacts: contacts, Err: err}
 }
 
-func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool, /*ok bool*/) (res bool) {
+// update the ShortList and CandiateList
+func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool) (res bool) {
 	if ret.Err == nil {
 		k.ShortList = append(k.ShortList, ret.QueryNode)
 		if terminator == true {
@@ -657,11 +692,11 @@ func (k *Kademlia) RcvNodeHandler(ret FindNodeMsg, id ID, terminator bool, /*ok 
 		fmt.Println("k CandiateList Len is :", len(k.CandiateList))
 		fmt.Println("idx is :", idx)
 		k.CandiateList = k.CandiateList[:idx]
-		// if !ok {
-		// 	return !(false || terminator)
-		// }
 		if len(k.CandiateList) == 0{
-			return false
+			return true
+		}
+		if len(ret.Contacts) == 0 {
+			return true
 		}
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
@@ -680,6 +715,8 @@ func (k *Kademlia) DoIterativeStore(key ID, value []byte) ([]Contact, error) {
 	}
 	return res, nil
 }
+
+// similar to DoIterativeFindNode
 func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 	k.ShortList = []Contact{}
 	k.CandiateList = []CandidateCon{}
@@ -754,16 +791,8 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			terminator =  !k.RcvValueHandler(*ret, key, terminator, /*ok*/) || terminator
 			cycle[ret.QueryNode.NodeID] = true
 		}
-		//
-		// if restCon {
-		// 	break
-		// }
 	}
 
-	// find the closest node in ShortList
-	// if len(k.ShortList) == 0 {
-	// 	return nil, &CommandFailed{"Found No Contacts!"}
-	// }
 	closest := -1
 	closestDis := NewRandomID()
 	for idx, c := range k.ShortList {
@@ -793,6 +822,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 
 }
 
+// handle the parallel DoFindValue() and receive results
 func (k *Kademlia) FindValueHandler(contact *Contact, searchKey ID) {
 	value, contacts, err := k.DoFindValue(contact, searchKey)
 	k.ValChan <- &FindValueMsg{Value: value, QueryNode: *contact, Contacts: contacts, Err: err}// pointer? argument?
@@ -833,6 +863,9 @@ func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*o
 		// 	return !(false || terminator)
 		// }
 		if len(k.CandiateList) == 0{
+			return false
+		}
+		if len(ret.Contacts) == 0 {
 			return false
 		}
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
