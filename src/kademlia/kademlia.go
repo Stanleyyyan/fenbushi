@@ -363,7 +363,15 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 	// 			fmt.Println("nodeID is :", c1.NodeID.AsString())
 	// 		}
 	// 	}
+	case toks[0] == "vanish":
+		if len(toks) != 5{
+			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
+			return 
+		}
+		VOD, err := libkademlia.IDFromString(toks[1])
+		if err != {
 
+		}
 	default:
 		response = "ERR: Unknown command"
 	}
