@@ -7,7 +7,8 @@ import (
 	"io"
 	mathrand "math/rand"
 	"time"
-	//"sss"
+	"sss"
+	"fmt"
 )
 
 type VanashingDataObject struct {
@@ -74,6 +75,27 @@ func decrypt(key []byte, ciphertext []byte) (text []byte) {
 
 func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
+	K := GenerateRandomCryptoKey()//[]byte
+	Ciphertext := encrypt(K, data)
+	BrokenKey, err := sss.Split(numberKeys, threshold, K)
+	if err != nil {
+		fmt.Println("AA")
+	}
+	L := GenerateRandomAccessKey()//int64
+	ids := CalculateSharedKeyLocations(L, int64(numberKeys))
+	for i := 0; i < len(Ciphertext); i++ {
+		
+	}
+
+
+	fmt.Println("Length BrokenKey is :", len(BrokenKey))
+	fmt.Println("ids is :", len(ids))
+
+
+	vdo.AccessKey = L
+	vdo.Ciphertext = Ciphertext
+	vdo.NumberKeys = numberKeys
+	vdo.Threshold = threshold
 	return
 }
 

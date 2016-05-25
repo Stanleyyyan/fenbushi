@@ -364,14 +364,22 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 	// 		}
 	// 	}
 	case toks[0] == "vanish":
-		if len(toks) != 5{
-			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
-			return 
-		}
-		VOD, err := libkademlia.IDFromString(toks[1])
-		if err != {
+		data := []byte("hello world")
+		ret := k.VanishData(data, 10, 3, 3)
+		fmt.Println(ret.AccessKey)
+		// if len(toks) != 5{
+		// 	response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
+		// 	return 
+		// }
+		// VDO, err := libkademlia.IDFromString(toks[1])
+		// if err != {
+		// 	response = "ERR: Provided an invalid VDO ID (" + toks[1] + ")"
+		// 	return
+		// }
+		// ret, err := k.Vanish()
 
-		}
+// func (k *Kademlia) Vanish(data []byte, numberKeys byte,
+// 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) 
 	default:
 		response = "ERR: Unknown command"
 	}
