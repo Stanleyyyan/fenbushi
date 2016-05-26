@@ -51,6 +51,11 @@ type CandidateCon struct {
 	Distance	ID
 }
 
+type VdoPack struct {
+	vdo 		VanashingDataObject
+	vdoID 		ID
+}
+
 type ConAry []CandidateCon
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
@@ -71,6 +76,10 @@ type Kademlia struct {
 	CandiateList		[]CandidateCon//20 - len(ShortList)
 	VisitedCon			map[ID]bool
 	ShortList			[]Contact
+	VdoList             map[ID]VanashingDataObject
+	StoreVdochan        chan VdoPack
+	GetVdoReqChan		chan GetVDORequest
+	GetVdoResChan		chan *GetVDOResult
 	// StoreChan			chan StoreMessage
 }
 
@@ -107,6 +116,10 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.ShortList			= []Contact{}
 	k.CandiateList		= []CandidateCon{}
 	k.VisitedCon		= make(map 	[ID]bool)
+	k.VdoList			= make(map	[ID]VanashingDataObject)
+	k.StoreVdochan      = make(chan VdoPack)
+	k.GetVdoReqChan		= make(chan GetVDORequest)
+	k.GetVdoResChan		= make(chan *GetVDOResult)
 	// k.StoreChan			= make(chan StoreMessage)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
@@ -377,6 +390,10 @@ func (k *Kademlia) Handler(){
 			k.FindResChan <- k.GetNode(newFindNodeReq)
 		case newFindValueReq := <- k.FindValueReqChan:
 			k.FindValueResChan <- k.GetValue(newFindValueReq)
+		case vdopack := <- k.StoreVdochan:
+			k.StoreV(vdopack)
+		case getvdoreq := <- k.GetVdoReqChan:
+			k.LocalGetVdo(getvdoreq)
 		}
 	}
 }
@@ -875,11 +892,89 @@ func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*o
 }
 
 // For project 3!
-func (k *Kademlia) Vanish(data []byte, numberKeys byte,
-	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
-	return
+func (k *Kademlia) StoreV(vdopack VdoPack){
+	k.VdoList[vdopack.vdoID] = vdopack.vdo
 }
 
-func (k *Kademlia) Unvanish(searchKey ID) (data []byte) {
+func (k *Kademlia) Vanish(vdoID ID, data []byte, numberKeys byte,
+	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
+	vdo = k.VanishData(data, numberKeys, threshold, timeoutSeconds)
+	vdopack := VdoPack{vdo: vdo, vdoID: vdoID}
+	k.StoreVdochan <- vdopack
+	return 
+}
+
+func (k *Kademlia) LocalGetVdo(req GetVDORequest){
+	for key, _ := range k.VdoList {
+		if(key.Equals(req.VdoID)){
+			res := new(GetVDOResult)
+			res.MsgID = req.MsgID
+			res.VDO = k.VdoList[key]
+			k.GetVdoResChan <- res
+
+		}
+	}
+}
+
+
+func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
+	dis := k.NodeID.Xor(searchKey)
+	bucketIdx := 159 - dis.PrefixLen()
+	flag := false
+	for i:=0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
+		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
+			portnum := strconv.Itoa(int(k.K_buckets.buckets[bucketIdx][i].Port))
+			// temp := k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum
+			conn, err := rpc.DialHTTPPath("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
+			rpc.DefaultRPCPath + portnum)
+			if err != nil {
+				fmt.Println("error!")
+				// log.Fatal("dialing:", err)
+				return nil
+			}
+			req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
+			res := new(GetVDOResult)
+  			err = conn.Call("KademliaRPC.GetVDO", req, res)
+  			if(err == nil){
+  				flag = true
+  				ciphertext := k.UnvanishData(res.VDO)
+				return ciphertext
+  			}
+		}
+	}
+	if(!flag) {
+		contacts, _ := k.DoIterativeFindNode(searchKey)
+		for _, c := range contacts {
+			if(c.NodeID.Equals(searchKey)){
+				portnum := strconv.Itoa(int(c.Port))
+				// temp := c.Host.String() + ":" + portnum
+				conn, err := rpc.DialHTTPPath("tcp", c.Host.String() + ":" + portnum,
+				rpc.DefaultRPCPath + portnum)
+				if err != nil {
+					fmt.Println("error!")
+					// log.Fatal("dialing:", err)
+					return nil
+				}
+				req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
+				res := new(GetVDOResult)
+	  			err = conn.Call("KademliaRPC.GetVDO", req, res)
+	  			if(err == nil){
+	  				flag = true
+	  				ciphertext := k.UnvanishData(res.VDO)
+					return ciphertext
+	  			}
+
+			}
+		}
+	}
+	if(!flag) {
+		for key, _ := range k.VdoList {
+			if(key.Equals(searchKey)){
+				flag = true
+				ciphertext := k.UnvanishData(k.VdoList[key])
+				return ciphertext
+			}
+		}
+	}
 	return nil
 }

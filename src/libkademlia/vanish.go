@@ -103,7 +103,7 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	vdo.Ciphertext = Ciphertext
 	vdo.NumberKeys = numberKeys
 	vdo.Threshold = threshold
-	return
+	return vdo
 }
 
 func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
@@ -128,3 +128,5 @@ func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 
 	return ciphertext
 }
+
+
