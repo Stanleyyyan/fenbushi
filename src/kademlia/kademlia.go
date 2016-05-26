@@ -364,9 +364,52 @@ func executeLine(k *libkademlia.Kademlia, line string) (response string) {
 	// 		}
 	// 	}
 	case toks[0] == "vanish":
-		data := []byte("hello world")
-		ret := k.VanishData(data, 10, 3, 3)
-		fmt.Println(ret.AccessKey)
+		if len(toks) != 6 {
+			response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold] [timeoutSeconds]"
+		}
+
+		VDOId, err := libkademlia.IDFromString(toks[1])
+		if err != nil {
+			response = "ERR: Provided an invalid vdoid (" + toks[1] + ")"
+			return
+		}
+		data  := []byte(toks[2])
+		numberKeys := []byte(toks[3])
+		numberKey := numberKeys[0]
+		thre  := []byte(toks[4])
+		threshold := thre[0]
+		timeoutSeconds, err := strconv.Atoi(toks[5])
+		if err != nil {
+			response = "ERR: Provided an invalid timeoutSeconds (" + toks[5] + ")"
+			return
+		}
+
+		k.Vanish(VDOId, data, numberKey, threshold, timeoutSeconds)
+
+	case toks[0] == "unvanish":
+		if len(toks) != 3 {
+			response = "usage: unvanish [NodeID ID] [VDOId ID]"
+		}
+
+		NodeID, err := libkademlia.IDFromString(toks[1])
+		if err != nil {
+			response = "ERR: Provided an invalid searchkey (" + toks[1] + ")"
+			return
+		}
+
+		VDOId, err := libkademlia.IDFromString(toks[2])
+		if err != nil {
+			response = "ERR: Provided an invalid vdoid (" + toks[2] + ")"
+			return
+		}
+
+		ciphertext := k.Unvanish(NodeID, VDOId)
+		text := string(ciphertext)
+		response = "the data been unvanished is (" + text + ")"
+
+		// data := []byte("hello world")
+		// ret := k.VanishData(data, 10, 3, 3)
+		// fmt.Println(ret.AccessKey)
 		// if len(toks) != 5{
 		// 	response = "usage: vanish [VDO ID] [data] [numberKeys] [threshold]"
 		// 	return 

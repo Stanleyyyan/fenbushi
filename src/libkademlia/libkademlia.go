@@ -901,7 +901,7 @@ func (k *Kademlia) Vanish(vdoID ID, data []byte, numberKeys byte,
 	vdo = k.VanishData(data, numberKeys, threshold, timeoutSeconds)
 	vdopack := VdoPack{vdo: vdo, vdoID: vdoID}
 	k.StoreVdochan <- vdopack
-	return 
+	return vdo
 }
 
 func (k *Kademlia) LocalGetVdo(req GetVDORequest){
@@ -921,7 +921,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
-	for i:=0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
+	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
 		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
 			portnum := strconv.Itoa(int(k.K_buckets.buckets[bucketIdx][i].Port))
 			// temp := k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum
