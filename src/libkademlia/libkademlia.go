@@ -71,6 +71,8 @@ type Kademlia struct {
 	CandiateList		[]CandidateCon//20 - len(ShortList)
 	VisitedCon			map[ID]bool
 	ShortList			[]Contact
+	VDOChan				chan VanashingDataObject
+	VDOs 				[]VanashingDataObject
 	// StoreChan			chan StoreMessage
 }
 
@@ -107,6 +109,7 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.ShortList			= []Contact{}
 	k.CandiateList		= []CandidateCon{}
 	k.VisitedCon		= make(map 	[ID]bool)
+	k.VDOChan 			= make(chan VanashingDataObject)
 	// k.StoreChan			= make(chan StoreMessage)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
