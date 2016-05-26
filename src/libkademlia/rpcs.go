@@ -268,5 +268,37 @@ type GetVDOResult struct {
 
 func (k *KademliaRPC) GetVDO(req GetVDORequest, res *GetVDOResult) error {
 	// TODO: Implement.
+	res.MsgID = CopyID(req.MsgID)
+	k.kademlia.GetVdoReqChan <- req
+	flag := true
+	for flag {
+		select {
+		case ret := <- k.kademlia.GetVdoResChan:
+			if ret.MsgID.Equals(res.MsgID){
+				res.VDO = ret.VDO
+				flag = false
+			}else {
+				k.kademlia.GetVdoResChan<- ret
+			}
+		}
+	}
+
+	updateMessage := new(UpdateMessage)
+	updateMessage.MsgID = req.MsgID
+	updateMessage.NewContact = req.Sender
+
+	k.kademlia.PingChan <- updateMessage
+	flag = true
+	for flag {
+		select {
+		case ack := <- k.kademlia.AckChan:
+			if ack.MsgID.Equals(req.MsgID) {
+				flag = false
+			}else {
+				k.kademlia.AckChan <- ack
+			}
+		}
+	}
+	fmt.Println("GetVDO Done")
 	return nil
 }

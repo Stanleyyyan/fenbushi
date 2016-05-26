@@ -9,6 +9,8 @@ import (
 	"time"
 	"sss"
 	"fmt"
+	"strconv"
+	"bytes"
 )
 
 type VanashingDataObject struct {
@@ -77,18 +79,23 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
 	K := GenerateRandomCryptoKey()//[]byte
 	Ciphertext := encrypt(K, data)
-	BrokenKey, err := sss.Split(numberKeys, threshold, K)
+	Shares, err := sss.Split(numberKeys, threshold, K)
 	if err != nil {
 		fmt.Println("AA")
 	}
 	L := GenerateRandomAccessKey()//int64
 	ids := CalculateSharedKeyLocations(L, int64(numberKeys))
-	for i := 0; i < len(Ciphertext); i++ {
+	// for i := 0; i < len(Ciphertext); i++ {
 		
+	// }
+	i := 0
+	for key, value := range Shares {
+		all := append([]byte{key}, value...)
+		k.DoIterativeStore(ids[i], all)
+		i++
 	}
 
-
-	fmt.Println("Length BrokenKey is :", len(BrokenKey))
+	fmt.Println("Length shares is :", len(Shares))
 	fmt.Println("ids is :", len(ids))
 
 
@@ -96,9 +103,30 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 	vdo.Ciphertext = Ciphertext
 	vdo.NumberKeys = numberKeys
 	vdo.Threshold = threshold
-	return
+	return vdo
 }
 
 func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
-	return nil
+	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
+	var Shares map[byte][]byte
+	Shares = make(map[byte][]byte)
+	count := 0;
+	threshold, _ := strconv.Atoi(string(vdo.Threshold))
+	for i := 0; i<len(ids); i++ {
+		if count == threshold {
+			break
+		}
+		all, _ := k.DoIterativeFindValue(ids[i])
+		if !bytes.Equal(all, []byte("")) {
+			Shares[all[0]] = all[1:]
+			count++
+		}
+
+	}
+	ciphertext := sss.Combine(Shares)
+	vdo.Ciphertext = ciphertext
+
+	return ciphertext
 }
+
+
