@@ -269,16 +269,16 @@ func TestVanish_Unvanish(t *testing.T) {
 	instance1 := NewKademlia("localhost:7927")
 	//instance2 := NewKademlia("localhost:7927")
 	host1, port1, _ := StringToIpPort("localhost:7927")
-	tree_node_trie1 := make([]*Kademlia, 20)
-	for i := 0; i < 10; i++ {
+	tree_node_trie1 := make([]*Kademlia, 30)
+	for i := 0; i < 30; i++ {
 		address := "localhost:" + strconv.Itoa(7930+i)
 		tree_node_trie1[i] = NewKademlia(address)
 		tree_node_trie1[i].DoPing(host1, port1)
 	}
 	SearchKey := instance1.SelfContact.NodeID
 	VdoID := NewRandomID()
-	instance1.Vanish(VdoID, []byte("AAAAAA"), 5, 2, 1)
-	ciphertext := instance1.Unvanish(SearchKey, VdoID)
+	instance1.Vanish(VdoID, []byte("AAAAAA"), 20, 15, 1)
+	ciphertext := tree_node_trie1[10].Unvanish(SearchKey, VdoID)
 	// data := []byte("Hello world")
 	// numberKeys := byte(10)
 	// threshold := byte(9)
@@ -288,7 +288,7 @@ func TestVanish_Unvanish(t *testing.T) {
 	fmt.Println(string(ciphertext) + "is result")
 	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
 		t.Error("Unvanish error")
-	} 
+	}
 
 	return
 }
