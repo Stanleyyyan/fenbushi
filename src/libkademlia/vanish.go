@@ -9,7 +9,7 @@ import (
 	"time"
 	"sss"
 	"fmt"
-	"strconv"
+	//"strconv"
 	"bytes"
 )
 
@@ -108,24 +108,29 @@ func (k *Kademlia) VanishData(data []byte, numberKeys byte,
 
 func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 	ids := CalculateSharedKeyLocations(vdo.AccessKey, int64(vdo.NumberKeys))
+	fmt.Println("AccessKey IS ", vdo.AccessKey)
+	fmt.Println("Ciphertext IS ", vdo.Ciphertext)
+	fmt.Println("NumberKeys IS ", vdo.NumberKeys)
+	fmt.Println("Threshold IS ", vdo.Threshold)
 	var Shares map[byte][]byte
 	Shares = make(map[byte][]byte)
 	count := 0;
-	threshold, _ := strconv.Atoi(string(vdo.Threshold))
+	threshold := int(vdo.Threshold)
+	fmt.Println("ID LENGTH IS :",len(ids))
 	for i := 0; i<len(ids); i++ {
 		if count == threshold {
 			break
 		}
 		all, _ := k.DoIterativeFindValue(ids[i])
+		fmt.Println("find shars is :", all)
 		if !bytes.Equal(all, []byte("")) {
 			Shares[all[0]] = all[1:]
 			count++
 		}
 
 	}
-	ciphertext := sss.Combine(Shares)
-	vdo.Ciphertext = ciphertext
-
+	K := sss.Combine(Shares)
+	ciphertext := decrypt(K, vdo.Ciphertext)
 	return ciphertext
 }
 

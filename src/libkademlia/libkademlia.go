@@ -205,7 +205,7 @@ func (k *Kademlia) PingAliveTest(host net.IP, port uint16) (*Contact, error) {
 	_, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 	if err != nil {
-		fmt.Println("error!")
+		fmt.Println("PingAliveTest error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	} else {
@@ -220,7 +220,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("error!")
+		fmt.Println("DoPing error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	}
@@ -407,7 +407,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 	if err != nil {
-		fmt.Println("error!")
+		fmt.Println("DoFindNode error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("error!")
+		fmt.Println("DoFindValue error!")
 		// log.Fatal("dialing:", err)
 		return nil, nil, err
 	}
@@ -918,9 +918,29 @@ func (k *Kademlia) LocalGetVdo(req GetVDORequest){
 
 
 func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
+	// fmt.Println("this is Unvanish with VDOID :", vdoID)
+	// 	for key, _ := range k.VdoList {
+	// 		fmt.Println("the key is :", key)
+	// 		if(key.Equals(vdoID)){
+	// 			fmt.Println("VDO Found!")
+	// 			ciphertext := k.UnvanishData(k.VdoList[key])
+	// 			return ciphertext
+	// 		}
+	// 	}
+	// return nil
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
+	if(!flag) {
+		for key, _ := range k.VdoList {
+			if(key.Equals(vdoID)){
+				fmt.Println("VDO Found!")
+				flag = true
+				ciphertext := k.UnvanishData(k.VdoList[key])
+				return ciphertext
+			}
+		}
+	}
 	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
 		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
 			portnum := strconv.Itoa(int(k.K_buckets.buckets[bucketIdx][i].Port))
@@ -928,7 +948,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 			conn, err := rpc.DialHTTPPath("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
 			rpc.DefaultRPCPath + portnum)
 			if err != nil {
-				fmt.Println("error!")
+				fmt.Println("Unvanish error!")
 				// log.Fatal("dialing:", err)
 				return nil
 			}
@@ -951,7 +971,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 				conn, err := rpc.DialHTTPPath("tcp", c.Host.String() + ":" + portnum,
 				rpc.DefaultRPCPath + portnum)
 				if err != nil {
-					fmt.Println("error!")
+					fmt.Println("VOD error!")
 					// log.Fatal("dialing:", err)
 					return nil
 				}
@@ -969,7 +989,8 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	}
 	if(!flag) {
 		for key, _ := range k.VdoList {
-			if(key.Equals(searchKey)){
+			if(key.Equals(vdoID)){
+				fmt.Println("VDO Found!")
 				flag = true
 				ciphertext := k.UnvanishData(k.VdoList[key])
 				return ciphertext
