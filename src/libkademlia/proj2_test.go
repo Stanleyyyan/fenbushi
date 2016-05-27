@@ -270,7 +270,7 @@ func TestVanish_Unvanish(t *testing.T) {
 	//instance2 := NewKademlia("localhost:7927")
 	host1, port1, _ := StringToIpPort("localhost:7927")
 	tree_node_trie1 := make([]*Kademlia, 20)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 10;i++ {
 		address := "localhost:" + strconv.Itoa(7930+i)
 		tree_node_trie1[i] = NewKademlia(address)
 		tree_node_trie1[i].DoPing(host1, port1)
