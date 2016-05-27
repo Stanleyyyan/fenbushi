@@ -202,13 +202,14 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) PingAliveTest(host net.IP, port uint16) (*Contact, error) {
 	portnum := strconv.Itoa(int(port))
-	_, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+	conn, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 	if err != nil {
 		fmt.Println("PingAliveTest error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	} else {
+		conn.Close()
 		return nil, nil
 	}
 }
@@ -229,7 +230,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	fmt.Println("Ping Target port is: ", port)
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
-
+  	client.Close()
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = pim.MsgID
 	updateMessage.NewContact = pom.Sender
