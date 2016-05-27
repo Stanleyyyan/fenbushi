@@ -796,7 +796,9 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			start = time.Now()
 			start = start.Add(300000000)
 		}
+		fmt.Println("WTF22222")
 		ret = <- k.ValChan
+		fmt.Println("WTF111111")
 		if ret.Value != nil {
 			foundValue = ret.Value
 			terminator = true
@@ -942,13 +944,16 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 		}
 	}
 	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
+		fmt.Println("Port is :", k.K_buckets.buckets[bucketIdx][i].Port)
 		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
 			portnum := strconv.Itoa(int(k.K_buckets.buckets[bucketIdx][i].Port))
 			// temp := k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum
+			fmt.Println("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
+			rpc.DefaultRPCPath + portnum)
 			conn, err := rpc.DialHTTPPath("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
 			rpc.DefaultRPCPath + portnum)
 			if err != nil {
-				fmt.Println("Unvanish error!")
+				fmt.Println("Unvanish error!!!!!!")
 				// log.Fatal("dialing:", err)
 				return nil
 			}
@@ -997,5 +1002,6 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 			}
 		}
 	}
+	fmt.Println("DIDNT RUN")
 	return nil
 }
