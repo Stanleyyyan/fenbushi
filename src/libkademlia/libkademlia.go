@@ -325,21 +325,22 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	//TODO: Implement
 	portnum := strconv.Itoa(int(contact.Port))
 	temp := contact.Host.String() + ":" + portnum
-	fmt.Println("DoStore:", temp)
 	//
 
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("error!")
+		fmt.Println("DoStore:", temp)
+		fmt.Println("DoStore error!")
+		fmt.Println("dialing:", err)
 		// log.Fatal("dialing:", err)
 		return err
 	}
 	req := StoreRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: key, Value: value}
 	res := new(StoreResult)
   	err = conn.Call("KademliaRPC.Store", req, res)
-
+  	conn.Close()
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
 	updateMessage.NewContact = *contact
@@ -414,6 +415,7 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	req := FindNodeRequest{Sender: k.SelfContact, MsgID: NewRandomID(), NodeID: searchKey}
 	res := new(FindNodeResult)
   	err = conn.Call("KademliaRPC.FindNode", req, res)
+  	conn.Close()
 
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
@@ -520,7 +522,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 	req := FindValueRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: searchKey}
 	res := new(FindValueResult)
   	err = conn.Call("KademliaRPC.FindValue", req, res)
-
+  	conn.Close()
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
 	updateMessage.NewContact = *contact
@@ -782,6 +784,9 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			break
 		}
 		if s || timeOut{
+			if len(k.CandiateList) == 0 {
+				terminator = true
+			}
 			conList := []Contact{}
 			cycle = map[ID]bool{}
 			for i := 0; i < 3 && i < len(k.CandiateList); i++ {
@@ -888,7 +893,6 @@ func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*o
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
 	return !(false || terminator)
-	return !(false || terminator)
 }
 
 // For project 3!
@@ -928,6 +932,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	// 		}
 	// 	}
 	// return nil
+	fmt.Println("searchKey is ", searchKey)
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
@@ -955,6 +960,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 			req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
 			res := new(GetVDOResult)
   			err = conn.Call("KademliaRPC.GetVDO", req, res)
+  			conn.Close()
   			if(err == nil){
   				flag = true
   				ciphertext := k.UnvanishData(res.VDO)
@@ -978,6 +984,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 				req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
 				res := new(GetVDOResult)
 	  			err = conn.Call("KademliaRPC.GetVDO", req, res)
+	  			conn.Close()
 	  			if(err == nil){
 	  				flag = true
 	  				ciphertext := k.UnvanishData(res.VDO)
