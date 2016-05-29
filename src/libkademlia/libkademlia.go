@@ -928,10 +928,12 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	// 		}
 	// 	}
 	// return nil
+
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
 	if(!flag) {
+		fmt.Print("================111111=============")
 		for key, _ := range k.VdoList {
 			if(key.Equals(vdoID)){
 				fmt.Println("VDO Found!")
@@ -963,6 +965,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 		}
 	}
 	if(!flag) {
+		fmt.Print("================22222=============")
 		contacts, _ := k.DoIterativeFindNode(searchKey)
 		for _, c := range contacts {
 			if(c.NodeID.Equals(searchKey)){
@@ -988,6 +991,7 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 		}
 	}
 	if(!flag) {
+		fmt.Print("================333333=============")
 		for key, _ := range k.VdoList {
 			if(key.Equals(vdoID)){
 				fmt.Println("VDO Found!")
