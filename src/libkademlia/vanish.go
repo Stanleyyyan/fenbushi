@@ -131,6 +131,8 @@ func (k *Kademlia) UnvanishData(vdo VanashingDataObject) (data []byte) {
 	}
 	K := sss.Combine(Shares)
 	ciphertext := decrypt(K, vdo.Ciphertext)
+	S := string(ciphertext)
+	fmt.Println("text is ", S)
 	return ciphertext
 }
 

@@ -264,16 +264,14 @@ func TestIterativeFindValueFail(t *testing.T) {
 
 */
 
-
-func TestVanish_Unvanish(t *testing.T) {
-	instance1 := NewKademlia("localhost:8927")
-	//instance2 := NewKademlia("localhost:7927")
-	host1, port1, _ := StringToIpPort("localhost:8927")
-	tree_node_trie1 := make([]*Kademlia, 20)
-	for i := 0; i < 15; i++ {
-		address := "localhost:" + strconv.Itoa(8930+i)
+func TestVanish_Unvanish_1(t *testing.T) {
+	instance1 := NewKademlia("localhost:8080")
+	tree_node_trie1 := make([]*Kademlia, 100)
+	for i := 0; i < 100; i++ {
+		address := "localhost:" + strconv.Itoa(7081+i)
 		tree_node_trie1[i] = NewKademlia(address)
-		tree_node_trie1[i].DoPing(host1, port1)
+		host1, port1, _ := StringToIpPort(address)
+		instance1.DoPing(host1, port1)
 	}
 
 	// for j := 0; j < 10; j++ {
@@ -283,14 +281,8 @@ func TestVanish_Unvanish(t *testing.T) {
 	// }
 	SearchKey := instance1.SelfContact.NodeID
 	VdoID := NewRandomID()
-	instance1.Vanish(VdoID, []byte("AAAAAA"), 10, 5, 1)
+	instance1.Vanish(VdoID, []byte("AAAAAA"), 100, 65, 1)
 	ciphertext := tree_node_trie1[5].Unvanish(SearchKey, VdoID)
-	// data := []byte("Hello world")
-	// numberKeys := byte(10)
-	// threshold := byte(9)
-	// timeoutSeconds := 100
-	// tree_node_trie1[3].Vanish(VdoID, data , numberKeys, threshold, timeoutSeconds)
-	// ciphertext := tree_node_trie1[3].Unvanish(SearchKey, VdoID)
 	fmt.Println(string(ciphertext) + "is result")
 	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
 		t.Error("Unvanish error")
@@ -298,3 +290,51 @@ func TestVanish_Unvanish(t *testing.T) {
 
 	return
 }
+
+// func TestVanish_Unvanish_2(t *testing.T) {
+// 	instance1 := NewKademlia("localhost:5080")
+// 	tree_node_trie1 := make([]*Kademlia, 100)
+// 	tree_node_trie2 := make([]*Kademlia, 20)
+// 	for i := 0; i < 100; i++ {
+// 		address := "localhost:" + strconv.Itoa(4081+i)
+// 		tree_node_trie1[i] = NewKademlia(address)
+// 		host1, port1, _ := StringToIpPort(address)
+// 		instance1.DoPing(host1, port1)
+// 	}
+// 	for j := 0; j < 20; j++ {
+// 		address := "localhost:" + strconv.Itoa(6081+j)
+// 		tree_node_trie2[j] = NewKademlia(address)
+// 		host2, port2, _ := StringToIpPort(address)
+// 		tree_node_trie1[5].DoPing(host2, port2)
+// 	}
+// 	SearchKey := instance1.SelfContact.NodeID
+// 	VdoID := NewRandomID()
+// 	instance1.Vanish(VdoID, []byte("AAAAAA"), 100, 65, 1)
+// 	ciphertext := tree_node_trie2[3].Unvanish(SearchKey, VdoID)
+// 	fmt.Println(string(ciphertext) + "is result")
+// 	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
+// 		t.Error("Unvanish error")
+// 	}
+// 	return
+// }
+
+// func TestVanish_Unvanish_local(t *testing.T) {
+// 	instance1 := NewKademlia("localhost:2080")
+// 	tree_node_trie1 := make([]*Kademlia, 100)
+// 	for i := 0; i < 100; i++ {
+// 		address := "localhost:" + strconv.Itoa(4581+i)
+// 		tree_node_trie1[i] = NewKademlia(address)
+// 		host1, port1, _ := StringToIpPort(address)
+// 		instance1.DoPing(host1, port1)
+// 	}
+// 	SearchKey := instance1.SelfContact.NodeID
+// 	VdoID := NewRandomID()
+// 	instance1.Vanish(VdoID, []byte("AAAAAA"), 100, 65, 1)
+// 	ciphertext := instance1.Unvanish(SearchKey, VdoID)
+// 	fmt.Println(string(ciphertext) + "is result")
+// 	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
+// 		t.Error("Unvanish error")
+// 	}
+
+// 	return
+// }
