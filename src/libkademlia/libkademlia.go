@@ -952,16 +952,16 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
-	if(!flag) {
-		for key, _ := range k.VdoList {
-			if(key.Equals(vdoID)){
-				fmt.Println("VDO Found!")
-				flag = true
-				ciphertext := k.UnvanishData(k.VdoList[key])
-				return ciphertext
-			}
-		}
-	}
+	// if(!flag) {
+	// 	for key, _ := range k.VdoList {
+	// 		if(key.Equals(vdoID)){
+	// 			fmt.Println("VDO Found!")
+	// 			flag = true
+	// 			ciphertext := k.UnvanishData(k.VdoList[key])
+	// 			return ciphertext
+	// 		}
+	// 	}
+	// }
 	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
 		fmt.Println("Port is :", k.K_buckets.buckets[bucketIdx][i].Port)
 		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
