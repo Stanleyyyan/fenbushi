@@ -292,7 +292,6 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 			k.AckChan <- ack
 			return errors.New("k buckets not full, add to tail")
 		} else {
-			fmt.Println("WTF!!!")
 			_, err :=
 				k.PingAliveTest(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
@@ -802,9 +801,7 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			start = time.Now()
 			start = start.Add(300000000)
 		}
-		fmt.Println("WTF22222")
 		ret = <- k.ValChan
-		fmt.Println("WTF111111")
 		if ret.Value != nil {
 			foundValue = ret.Value
 			terminator = true
@@ -931,7 +928,6 @@ func (k *Kademlia) LocalGetVdo(req GetVDORequest){
 			res.MsgID = req.MsgID
 			res.VDO = k.VdoList[key]
 			k.GetVdoResChan <- res
-
 		}
 	}
 }
@@ -952,16 +948,16 @@ func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
 	dis := k.NodeID.Xor(searchKey)
 	bucketIdx := 159 - dis.PrefixLen()
 	flag := false
-	if(!flag) {
-		for key, _ := range k.VdoList {
-			if(key.Equals(vdoID)){
-				fmt.Println("VDO Found!")
-				flag = true
-				ciphertext := k.UnvanishData(k.VdoList[key])
-				return ciphertext
-			}
-		}
-	}
+	// if(!flag) {
+	// 	for key, _ := range k.VdoList {
+	// 		if(key.Equals(vdoID)){
+	// 			fmt.Println("VDO Found!")
+	// 			flag = true
+	// 			ciphertext := k.UnvanishData(k.VdoList[key])
+	// 			return ciphertext
+	// 		}
+	// 	}
+	// }
 	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
 		fmt.Println("Port is :", k.K_buckets.buckets[bucketIdx][i].Port)
 		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
