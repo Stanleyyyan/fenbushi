@@ -9,7 +9,7 @@ import (
 	"net"
 	"strconv"
 	"testing"
-	// "time"
+	"time"
 	"fmt"
 )
 
@@ -32,7 +32,7 @@ func StringToIpPort(laddr string) (ip net.IP, port uint16, err error) {
 	port = uint16(portInt)
 	return
 }
-/*
+
 func TestIterativeFindNode(t *testing.T) {
 	kNum := 40
 	targetIdx := kNum - 5
@@ -258,79 +258,6 @@ func TestIterativeFindValueFail(t *testing.T) {
 	}
 	if !bytes.Equal(value, []byte("")) || e.Error() != closest.AsString() {
 		t.Error(e.Error())
-	}
-	return
-}
-
-*/
-
-func TestVanish_Unvanish_1(t *testing.T) {
-	instance1 := NewKademlia("localhost:8080")
-	tree_node_trie1 := make([]*Kademlia, 80)
-	for i := 0; i < 80; i++ {
-		address := "localhost:" + strconv.Itoa(7081+i)
-		tree_node_trie1[i] = NewKademlia(address)
-		host1, port1, _ := StringToIpPort(address)
-		instance1.DoPing(host1, port1)
-	}
-	SearchKey := instance1.SelfContact.NodeID
-	VdoID := NewRandomID()
-	instance1.Vanish(VdoID, []byte("AAAAAA"), 80, 65, 10000000000)
-	ciphertext := tree_node_trie1[5].Unvanish(SearchKey, VdoID)
-	fmt.Println(string(ciphertext) + "is result")
-	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
-		t.Error("Unvanish error")
-	}
-
-	return
-}
-
-func TestVanish_Unvanish_2(t *testing.T) {
-	instance1 := NewKademlia("localhost:5080")
-	tree_node_trie1 := make([]*Kademlia, 50)
-	tree_node_trie2 := make([]*Kademlia, 20)
-	for i := 0; i < 50; i++ {
-		address := "localhost:" + strconv.Itoa(4081+i)
-		tree_node_trie1[i] = NewKademlia(address)
-		host1, port1, _ := StringToIpPort(address)
-		instance1.DoPing(host1, port1)
-	}
-	for j := 0; j < 20; j++ {
-		address := "localhost:" + strconv.Itoa(6081+j)
-		tree_node_trie2[j] = NewKademlia(address)
-		host2, port2, _ := StringToIpPort(address)
-		tree_node_trie1[5].DoPing(host2, port2)
-	}
-	SearchKey := instance1.SelfContact.NodeID
-	VdoID := NewRandomID()
-	instance1.Vanish(VdoID, []byte("AAAAAA"), 50, 45, 100000000000)
-	ciphertext := tree_node_trie2[3].Unvanish(SearchKey, VdoID)
-	fmt.Println(string(ciphertext) + "is result")
-	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
-		t.Error("Unvanish error")
-	}
-	return
-}
-
-
-func TestVanish_Unvanish_local(t *testing.T) {
-	fmt.Println("starting")
-	instance1 := NewKademlia("localhost:2080")
-	tree_node_trie1 := make([]*Kademlia, 20)
-	for i := 0; i < 20; i++ {
-		address := "localhost:" + strconv.Itoa(4581+i)
-		tree_node_trie1[i] = NewKademlia(address)
-		host1, port1, _ := StringToIpPort(address)
-		instance1.DoPing(host1, port1)
-	}
-	fmt.Println("finished creating")
-	SearchKey := instance1.SelfContact.NodeID
-	VdoID := NewRandomID()
-	instance1.Vanish(VdoID, []byte("AAAAAA"), 20, 15, 3000000000000)
-	ciphertext := instance1.Unvanish(SearchKey, VdoID)
-	fmt.Println(string(ciphertext) + "is result")
-	if (!bytes.Equal(ciphertext, []byte("AAAAAA"))) {
-		t.Error("Unvanish error")
 	}
 	return
 }

@@ -51,11 +51,6 @@ type CandidateCon struct {
 	Distance	ID
 }
 
-type VdoPack struct {
-	vdo 		VanashingDataObject
-	vdoID 		ID
-}
-
 type ConAry []CandidateCon
 // Kademlia type. You can put whatever state you need in this.
 type Kademlia struct {
@@ -76,10 +71,6 @@ type Kademlia struct {
 	CandiateList		[]CandidateCon//20 - len(ShortList)
 	VisitedCon			map[ID]bool
 	ShortList			[]Contact
-	VdoList             map[ID]VanashingDataObject
-	StoreVdochan        chan VdoPack
-	GetVdoReqChan		chan GetVDORequest
-	GetVdoResChan		chan *GetVDOResult
 	// StoreChan			chan StoreMessage
 }
 
@@ -116,10 +107,6 @@ func NewKademliaWithId(laddr string, nodeID ID) *Kademlia {
 	k.ShortList			= []Contact{}
 	k.CandiateList		= []CandidateCon{}
 	k.VisitedCon		= make(map 	[ID]bool)
-	k.VdoList			= make(map	[ID]VanashingDataObject)
-	k.StoreVdochan      = make(chan VdoPack)
-	k.GetVdoReqChan		= make(chan GetVDORequest)
-	k.GetVdoResChan		= make(chan *GetVDOResult)
 	// k.StoreChan			= make(chan StoreMessage)
 	go k.Handler()
 	// TODO: Initialize other state here as you add functionality.
@@ -202,14 +189,13 @@ func (e *CommandFailed) Error() string {
 
 func (k *Kademlia) PingAliveTest(host net.IP, port uint16) (*Contact, error) {
 	portnum := strconv.Itoa(int(port))
-	conn, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
+	_, err := rpc.DialHTTPPath("tcp", host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 	if err != nil {
-		fmt.Println("PingAliveTest error!")
+		fmt.Println("error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	} else {
-		conn.Close()
 		return nil, nil
 	}
 }
@@ -221,7 +207,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("DoPing error!")
+		fmt.Println("error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	}
@@ -230,7 +216,7 @@ func (k *Kademlia) DoPing(host net.IP, port uint16) (*Contact, error) {
 	fmt.Println("Ping Target port is: ", port)
 	pom := new(PongMessage)
   	err = client.Call("KademliaRPC.Ping", pim, pom)
-  	client.Close()
+
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = pim.MsgID
 	updateMessage.NewContact = pom.Sender
@@ -292,6 +278,7 @@ func (k *Kademlia) UpdateRT(c *UpdateMessage) error {
 			k.AckChan <- ack
 			return errors.New("k buckets not full, add to tail")
 		} else {
+			fmt.Println("WTF!!!")
 			_, err :=
 				k.PingAliveTest(k.K_buckets.buckets[numOfBucket][0].Host, k.K_buckets.buckets[numOfBucket][0].Port)
 			if err != nil {
@@ -325,22 +312,21 @@ func (k *Kademlia) DoStore(contact *Contact, key ID, value []byte) error {
 	//TODO: Implement
 	portnum := strconv.Itoa(int(contact.Port))
 	temp := contact.Host.String() + ":" + portnum
+	fmt.Println("DoStore:", temp)
 	//
 
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("DoStore:", temp)
-		fmt.Println("DoStore error!")
-		fmt.Println("dialing:", err)
+		fmt.Println("error!")
 		// log.Fatal("dialing:", err)
 		return err
 	}
 	req := StoreRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: key, Value: value}
 	res := new(StoreResult)
   	err = conn.Call("KademliaRPC.Store", req, res)
-  	conn.Close()
+
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
 	updateMessage.NewContact = *contact
@@ -391,10 +377,6 @@ func (k *Kademlia) Handler(){
 			k.FindResChan <- k.GetNode(newFindNodeReq)
 		case newFindValueReq := <- k.FindValueReqChan:
 			k.FindValueResChan <- k.GetValue(newFindValueReq)
-		case vdopack := <- k.StoreVdochan:
-			k.StoreV(vdopack)
-		case getvdoreq := <- k.GetVdoReqChan:
-			k.LocalGetVdo(getvdoreq)
 		}
 	}
 }
@@ -408,14 +390,13 @@ func (k *Kademlia) DoFindNode(contact *Contact, searchKey ID) ([]Contact, error)
 	conn, err := rpc.DialHTTPPath("tcp", contact.Host.String() + ":" + portnum,
 		rpc.DefaultRPCPath + portnum)
 	if err != nil {
-		fmt.Println("DoFindNode error!")
+		fmt.Println("error!")
 		// log.Fatal("dialing:", err)
 		return nil, err
 	}
 	req := FindNodeRequest{Sender: k.SelfContact, MsgID: NewRandomID(), NodeID: searchKey}
 	res := new(FindNodeResult)
   	err = conn.Call("KademliaRPC.FindNode", req, res)
-  	conn.Close()
 
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
@@ -514,7 +495,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 		rpc.DefaultRPCPath + portnum)
 
 	if err != nil {
-		fmt.Println("DoFindValue error!")
+		fmt.Println("error!")
 		// log.Fatal("dialing:", err)
 		return nil, nil, err
 	}
@@ -522,7 +503,7 @@ func (k *Kademlia) DoFindValue(contact *Contact,
 	req := FindValueRequest{Sender: k.SelfContact, MsgID: NewRandomID(), Key: searchKey}
 	res := new(FindValueResult)
   	err = conn.Call("KademliaRPC.FindValue", req, res)
-  	conn.Close()
+
 	updateMessage := new(UpdateMessage)
 	updateMessage.MsgID = req.MsgID
 	updateMessage.NewContact = *contact
@@ -784,9 +765,6 @@ func (k *Kademlia) DoIterativeFindValue(key ID) (value []byte, err error) {
 			break
 		}
 		if s || timeOut{
-			if len(k.CandiateList) == 0 {
-				terminator = true
-			}
 			conList := []Contact{}
 			cycle = map[ID]bool{}
 			for i := 0; i < 3 && i < len(k.CandiateList); i++ {
@@ -893,132 +871,15 @@ func (k *Kademlia) RcvValueHandler(ret FindValueMsg, id ID, terminator bool, /*o
 		return id.Xor(ret.Contacts[0].NodeID).Compare(k.CandiateList[len(k.CandiateList) - 1].Distance) < 1
 	}
 	return !(false || terminator)
+	return !(false || terminator)
 }
 
 // For project 3!
-func (k *Kademlia) StoreV(vdopack VdoPack){
-	k.VdoList[vdopack.vdoID] = vdopack.vdo
-}
-
-func (k *Kademlia) UpdateVDO(vdo VanashingDataObject, timeoutSeconds int) {
-	for {
-		start := time.Now()
-		end := start.Add(time.Duration(timeoutSeconds))
-		for end.After(time.Now()) {
-			continue
-		}
-		data := k.UnvanishData(vdo)
-		vdo = k.VanishData(data, vdo.NumberKeys, vdo.Threshold, timeoutSeconds)
-	}
-}
-
-func (k *Kademlia) Vanish(vdoID ID, data []byte, numberKeys byte,
+func (k *Kademlia) Vanish(data []byte, numberKeys byte,
 	threshold byte, timeoutSeconds int) (vdo VanashingDataObject) {
-	vdo = k.VanishData(data, numberKeys, threshold, timeoutSeconds)
-	vdopack := VdoPack{vdo: vdo, vdoID: vdoID}
-	k.StoreVdochan <- vdopack
-	go k.UpdateVDO(vdo, timeoutSeconds)
-	return vdo
+	return
 }
 
-func (k *Kademlia) LocalGetVdo(req GetVDORequest){
-	for key, _ := range k.VdoList {
-		if(key.Equals(req.VdoID)){
-			res := new(GetVDOResult)
-			res.MsgID = req.MsgID
-			res.VDO = k.VdoList[key]
-			k.GetVdoResChan <- res
-		}
-	}
-}
-
-
-func (k *Kademlia) Unvanish(searchKey ID, vdoID ID) (data []byte) {
-	// fmt.Println("this is Unvanish with VDOID :", vdoID)
-	// 	for key, _ := range k.VdoList {
-	// 		fmt.Println("the key is :", key)
-	// 		if(key.Equals(vdoID)){
-	// 			fmt.Println("VDO Found!")
-	// 			ciphertext := k.UnvanishData(k.VdoList[key])
-	// 			return ciphertext
-	// 		}
-	// 	}
-	// return nil
-	fmt.Println("searchKey is ", searchKey)
-	dis := k.NodeID.Xor(searchKey)
-	bucketIdx := 159 - dis.PrefixLen()
-	flag := false
-	// if(!flag) {
-	// 	for key, _ := range k.VdoList {
-	// 		if(key.Equals(vdoID)){
-	// 			fmt.Println("VDO Found!")
-	// 			flag = true
-	// 			ciphertext := k.UnvanishData(k.VdoList[key])
-	// 			return ciphertext
-	// 		}
-	// 	}
-	// }
-	for i:= 0; i<len(k.K_buckets.buckets[bucketIdx]); i++ {
-		fmt.Println("Port is :", k.K_buckets.buckets[bucketIdx][i].Port)
-		if(k.K_buckets.buckets[bucketIdx][i].NodeID.Equals(searchKey)){
-			portnum := strconv.Itoa(int(k.K_buckets.buckets[bucketIdx][i].Port))
-			// temp := k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum
-			fmt.Println("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
-			rpc.DefaultRPCPath + portnum)
-			conn, err := rpc.DialHTTPPath("tcp", k.K_buckets.buckets[bucketIdx][i].Host.String() + ":" + portnum,
-			rpc.DefaultRPCPath + portnum)
-			if err != nil {
-				fmt.Println("Unvanish error!!!!!!")
-				// log.Fatal("dialing:", err)
-				return nil
-			}
-			req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
-			res := new(GetVDOResult)
-  			err = conn.Call("KademliaRPC.GetVDO", req, res)
-  			conn.Close()
-  			if(err == nil){
-  				flag = true
-  				ciphertext := k.UnvanishData(res.VDO)
-				return ciphertext
-  			}
-		}
-	}
-	if(!flag) {
-		contacts, _ := k.DoIterativeFindNode(searchKey)
-		for _, c := range contacts {
-			if(c.NodeID.Equals(searchKey)){
-				portnum := strconv.Itoa(int(c.Port))
-				// temp := c.Host.String() + ":" + portnum
-				conn, err := rpc.DialHTTPPath("tcp", c.Host.String() + ":" + portnum,
-				rpc.DefaultRPCPath + portnum)
-				if err != nil {
-					fmt.Println("VOD error!")
-					// log.Fatal("dialing:", err)
-					return nil
-				}
-				req := GetVDORequest{Sender: k.SelfContact, VdoID: vdoID, MsgID: NewRandomID()}
-				res := new(GetVDOResult)
-	  			err = conn.Call("KademliaRPC.GetVDO", req, res)
-	  			conn.Close()
-	  			if(err == nil){
-	  				flag = true
-	  				ciphertext := k.UnvanishData(res.VDO)
-					return ciphertext
-	  			}
-
-			}
-		}
-	}
-	if(!flag) {
-		for key, _ := range k.VdoList {
-			if(key.Equals(vdoID)){
-				fmt.Println("VDO Found!")
-				flag = true
-				ciphertext := k.UnvanishData(k.VdoList[key])
-				return ciphertext
-			}
-		}
-	}
-	fmt.Println("DIDNT RUN")
+func (k *Kademlia) Unvanish(searchKey ID) (data []byte) {
 	return nil
 }

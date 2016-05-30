@@ -1,0 +1,15 @@
+Ounan Ma, omg049
+Chong Yan, cyu422
+Wenjie Zhang, wzm416
+
+For extra credits:
+1: For TestIterativeFindNode: 
+	In this test we test IterativeFindNode function 
+2: For TestIterativeFindNodeFail:
+	In this test we also test IterativeFindNode function, and in this test we design the tree that make the target node cannot be found
+3: For TestIterativeStore:
+	In this test we test DoIterativeStore function, and check if the key/value is successfully store in the nodes in shortlist
+4: For TestIterativeFindValue:
+	In this test we test IterativeFindValue function
+5: For TestIterativeFindValueFail:
+	In this test we also test IterativeFindValue function, and in this test we check when value is not stored, whether the closest node's ID is returned
